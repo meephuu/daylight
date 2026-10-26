@@ -59,10 +59,15 @@ export default function CalendarPage() {
   const states = useMemo(() => stateMap(statesQuery.data ?? []), [statesQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
 
+  const projectColors = useMemo(
+    () => new Map(projects.map((project) => [project.id, project.color])),
+    [projects],
+  );
+
   const days = useMemo(() => getVisibleDays(mode, cursor), [mode, cursor]);
   const entries = useMemo(
-    () => entriesByDate(days.map(toDateString), tasks, items, states),
-    [days, tasks, items, states],
+    () => entriesByDate(days.map(toDateString), tasks, items, states, projectColors),
+    [days, tasks, items, states, projectColors],
   );
 
   // A small movement threshold keeps plain clicks on a chip from starting a drag.

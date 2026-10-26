@@ -9,37 +9,26 @@ interface EntryChipProps {
 }
 
 /**
- * Tasks are the thing to act on, so they get a solid chip in their priority colour. Events and
- * reminders are background information: a quiet grey chip with just a coloured edge.
+ * One chip design for tasks, events and reminders; only the colours differ.
+ * - Left border: the entry's own colour (a task's priority, an event's or reminder's chosen colour).
+ * - Background: a task's project colour; everything else (and tasks without a project) is the quiet grey.
  */
 export function EntryChip({ entry, className }: EntryChipProps) {
   const repeats = entry.occurrence !== undefined && entry.occurrence.item.repeatRule !== "none";
-
-  if (entry.kind === "task") {
-    return (
-      <div
-        className={cn(
-          "flex items-center gap-1.5 truncate rounded-md px-2 py-1.5 text-xs font-semibold shadow-sm",
-          entry.done && "line-through opacity-50",
-          className,
-        )}
-        style={{ backgroundColor: entry.color, color: readableTextColor(entry.color) }}
-        title={entry.title}
-      >
-        {entry.startTime && <span className="shrink-0 tabular-nums opacity-80">{entry.startTime}</span>}
-        <span className="truncate">{entry.title}</span>
-      </div>
-    );
-  }
+  const projectColor = entry.kind === "task" ? entry.projectColor : null;
 
   return (
     <div
       className={cn(
-        "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-muted/50 px-1.5 py-0.5 text-[11px] text-muted-foreground",
+        "flex items-center gap-1 truncate rounded-sm border-l-[3px] px-1.5 py-0.5 text-[11px]",
+        projectColor === null && "bg-muted/50 text-muted-foreground",
         entry.done && "line-through opacity-50",
         className,
       )}
-      style={{ borderLeftColor: entry.color }}
+      style={{
+        borderLeftColor: entry.color,
+        ...(projectColor === null ? {} : { backgroundColor: projectColor, color: readableTextColor(projectColor) }),
+      }}
       title={entry.title}
     >
       {entry.kind === "reminder" && <Bell className="size-3 shrink-0" />}

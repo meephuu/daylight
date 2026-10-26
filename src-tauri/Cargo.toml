@@ -1,6 +1,6 @@
 [package]
 name = "my-dashboard"
-version = "1.0.0"
+version = "1.1.1"
 description = "Daylight - a personal dashboard for tasks, habits, notes and expenses"
 authors = ["you"]
 edition = "2024"

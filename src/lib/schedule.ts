@@ -13,7 +13,10 @@ export interface ScheduleEntry {
   date: string;
   startTime: string | null;
   endTime: string | null;
+  /** Identity colour: a task's priority colour, or an event / reminder's chosen colour. */
   color: string;
+  /** Tasks only: the colour of the task's project (null when it has none). */
+  projectColor: string | null;
   done: boolean;
   task?: Task;
   occurrence?: Occurrence;
@@ -36,7 +39,7 @@ export const ENTRY_KIND_LABELS: Record<EntryKind, string> = {
 
 const KIND_ORDER: Record<EntryKind, number> = { event: 0, reminder: 1, task: 2 };
 
-export function taskEntry(task: Task, date: string): ScheduleEntry {
+export function taskEntry(task: Task, date: string, projectColor: string | null = null): ScheduleEntry {
   return {
     key: `task-${task.id}`,
     kind: "task",
@@ -45,6 +48,7 @@ export function taskEntry(task: Task, date: string): ScheduleEntry {
     startTime: task.dueTime,
     endTime: null,
     color: PRIORITY_COLORS[task.priority],
+    projectColor,
     done: task.status === "done",
     task,
     draggable: true,
@@ -61,6 +65,7 @@ export function occurrenceEntry(occurrence: Occurrence): ScheduleEntry {
     startTime: item.startTime,
     endTime: item.endTime,
     color: item.color,
+    projectColor: null,
     done: state === "done",
     occurrence,
     draggable: item.repeatRule === "none",
@@ -86,10 +91,13 @@ export function entriesForDate(
   tasks: Task[],
   items: CalendarItem[],
   states: Map<string, OccurrenceState>,
+  projectColors: Map<number, string> = new Map(),
 ): ScheduleEntry[] {
   const entries: ScheduleEntry[] = [];
   for (const task of tasks) {
-    if (task.dueDate === date) entries.push(taskEntry(task, date));
+    if (task.dueDate !== date) continue;
+    const projectColor = task.projectId === null ? null : (projectColors.get(task.projectId) ?? null);
+    entries.push(taskEntry(task, date, projectColor));
   }
   for (const occurrence of occurrencesOn(items, date, states)) {
     entries.push(occurrenceEntry(occurrence));
@@ -103,6 +111,7 @@ export function entriesByDate(
   tasks: Task[],
   items: CalendarItem[],
   states: Map<string, OccurrenceState>,
+  projectColors: Map<number, string> = new Map(),
 ): Map<string, ScheduleEntry[]> {
   const tasksByDate = new Map<string, Task[]>();
   for (const task of tasks) {
@@ -112,6 +121,6 @@ export function entriesByDate(
     else tasksByDate.set(task.dueDate, [task]);
   }
   return new Map(
-    dates.map((date) => [date, entriesForDate(date, tasksByDate.get(date) ?? [], items, states)]),
+    dates.map((date) => [date, entriesForDate(date, tasksByDate.get(date) ?? [], items, states, projectColors)]),
   );
 }
