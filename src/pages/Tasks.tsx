@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjects } from "@/hooks/useProjects";
 import { useDeleteTask, useSetTaskStatus, useTasks } from "@/hooks/useTasks";
-import { todayString } from "@/lib/dates";
 import type { Task } from "@/lib/db/tasks";
 import {
   buildSections,
@@ -19,21 +18,21 @@ import {
 } from "@/lib/taskViews";
 
 const VIEWS: { value: TaskView; label: string }[] = [
-  { value: "today", label: "Today" },
   { value: "upcoming", label: "Upcoming" },
+  { value: "done", label: "Done" },
   { value: "all", label: "All" },
 ];
 
 const EMPTY_MESSAGES: Record<TaskView, string> = {
-  today: "Nothing due today. Enjoy the free time!",
-  upcoming: "No upcoming tasks with a due date.",
+  upcoming: "Nothing left to do. Enjoy the free time!",
+  done: "Nothing completed yet.",
   all: "No tasks yet. Add one above.",
 };
 
 export default function TasksPage() {
   const location = useLocation();
   const quickAddSignal = (location.state as { quickAddSignal?: number } | null)?.quickAddSignal;
-  const [view, setView] = useState<TaskView>("today");
+  const [view, setView] = useState<TaskView>("upcoming");
   const [projectId, setProjectId] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
@@ -53,9 +52,9 @@ export default function TasksPage() {
   const projectTasks = useMemo(() => filterByProject(tasks, projectId), [tasks, projectId]);
   const counts = useMemo(
     () => ({
-      today: tasksForView(projectTasks, "today").length,
       upcoming: tasksForView(projectTasks, "upcoming").length,
-      all: projectTasks.filter((task) => task.status !== "done").length,
+      done: tasksForView(projectTasks, "done").length,
+      all: projectTasks.length,
     }),
     [projectTasks],
   );
@@ -98,7 +97,7 @@ export default function TasksPage() {
         </div>
 
         <QuickAdd
-          dueDate={view === "today" ? todayString() : null}
+          dueDate={null}
           projectId={projectId}
           focusSignal={quickAddSignal}
         />
@@ -153,7 +152,7 @@ export default function TasksPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         task={editing}
-        defaults={{ dueDate: view === "today" ? todayString() : null, projectId }}
+        defaults={{ dueDate: null, projectId }}
         projects={projects}
       />
     </div>

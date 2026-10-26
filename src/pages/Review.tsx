@@ -24,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const LIST_LIMIT = 8;
-const DAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
+const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 
 function SummaryTile({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Clock }) {
   return (

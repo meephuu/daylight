@@ -14,6 +14,8 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
+  /** "HH:MM"; only meaningful together with dueDate. */
+  dueTime: string | null;
   projectId: number | null;
   completedAt: string | null;
   createdAt: string;
@@ -27,6 +29,7 @@ export interface TaskInput {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
+  dueTime: string | null;
   projectId: number | null;
   tags: string[];
 }
@@ -38,6 +41,7 @@ const taskRowSchema = z.object({
   status: z.enum(TASK_STATUSES),
   priority: z.enum(TASK_PRIORITIES),
   due_date: z.string().nullable(),
+  due_time: z.string().nullable(),
   project_id: z.number().nullable(),
   completed_at: z.string().nullable(),
   created_at: z.string(),
@@ -65,7 +69,7 @@ export function normalizeTags(tags: string[]): string[] {
 export async function listTasks(): Promise<Task[]> {
   const db = await getDb();
   const rows = await db.select<unknown>(
-    `SELECT t.id, t.title, t.notes, t.status, t.priority, t.due_date, t.project_id,
+    `SELECT t.id, t.title, t.notes, t.status, t.priority, t.due_date, t.due_time, t.project_id,
             t.completed_at, t.created_at, t.updated_at,
             (SELECT group_concat(g.name, ',')
                FROM task_tags tt JOIN tags g ON g.id = tt.tag_id
@@ -79,6 +83,7 @@ export async function listTasks(): Promise<Task[]> {
     status: row.status,
     priority: row.priority,
     dueDate: row.due_date,
+    dueTime: row.due_time,
     projectId: row.project_id,
     completedAt: row.completed_at,
     createdAt: row.created_at,
@@ -104,14 +109,16 @@ async function setTaskTags(taskId: number, tags: string[]): Promise<void> {
 export async function createTask(input: TaskInput): Promise<number> {
   const db = await getDb();
   const result = await db.execute(
-    `INSERT INTO tasks (title, notes, status, priority, due_date, project_id, completed_at)
-     VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7 = 'done' THEN ${NOW_SQL} END)`,
+    `INSERT INTO tasks (title, notes, status, priority, due_date, due_time, project_id, completed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8 = 'done' THEN ${NOW_SQL} END)`,
     [
       input.title,
       input.notes,
       input.status,
       input.priority,
       input.dueDate,
+      // A time without a date means nothing, so it is dropped.
+      input.dueDate === null ? null : input.dueTime,
       input.projectId,
       input.status,
     ],
@@ -125,19 +132,20 @@ export async function createTask(input: TaskInput): Promise<number> {
 export async function updateTask(id: number, input: TaskInput): Promise<void> {
   const db = await getDb();
   // In an UPDATE, column references on the right-hand side see the OLD row, so completed_at
-  // is decided from the new status passed as $7 (same value as $3).
+  // is decided from the new status passed as $8 (same value as $3).
   await db.execute(
     `UPDATE tasks
-        SET title = $1, notes = $2, status = $3, priority = $4, due_date = $5, project_id = $6,
-            completed_at = CASE WHEN $7 = 'done' THEN COALESCE(completed_at, ${NOW_SQL}) END,
+        SET title = $1, notes = $2, status = $3, priority = $4, due_date = $5, due_time = $6, project_id = $7,
+            completed_at = CASE WHEN $8 = 'done' THEN COALESCE(completed_at, ${NOW_SQL}) END,
             updated_at = ${NOW_SQL}
-      WHERE id = $8`,
+      WHERE id = $9`,
     [
       input.title,
       input.notes,
       input.status,
       input.priority,
       input.dueDate,
+      input.dueDate === null ? null : input.dueTime,
       input.projectId,
       input.status,
       id,
@@ -160,10 +168,12 @@ export async function setTaskStatus(id: number, status: TaskStatus): Promise<voi
 
 export async function setTaskDueDate(id: number, dueDate: string | null): Promise<void> {
   const db = await getDb();
-  await db.execute(`UPDATE tasks SET due_date = $1, updated_at = ${NOW_SQL} WHERE id = $2`, [
-    dueDate,
-    id,
-  ]);
+  // The time of day stays when a task is moved to another day; clearing the date clears it too.
+  await db.execute(
+    `UPDATE tasks SET due_date = $1, due_time = CASE WHEN $2 IS NULL THEN NULL ELSE due_time END,
+            updated_at = ${NOW_SQL} WHERE id = $3`,
+    [dueDate, dueDate, id],
+  );
 }
 
 export async function deleteTask(id: number): Promise<void> {

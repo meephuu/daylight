@@ -2,6 +2,8 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { OptionSelect } from "@/components/OptionSelect";
+import { DatePicker } from "@/components/pickers/DatePicker";
+import { TimePicker } from "@/components/pickers/TimePicker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,6 +33,7 @@ const formSchema = z.object({
   status: z.enum(TASK_STATUSES),
   priority: z.enum(TASK_PRIORITIES),
   dueDate: z.string(), // "" or YYYY-MM-DD
+  dueTime: z.string().regex(/^(\d{2}:\d{2})?$/, "Use HH:MM"), // "" or HH:MM
   projectId: z.string(), // NO_PROJECT or a project id
   tags: z.string(), // comma-separated
 });
@@ -112,6 +115,7 @@ function TaskForm({ task, defaults, projects, onDone }: TaskFormProps) {
       status: task?.status ?? "todo",
       priority: task?.priority ?? "medium",
       dueDate: task ? (task.dueDate ?? "") : (defaults?.dueDate ?? ""),
+      dueTime: task?.dueTime ?? "",
       projectId: String((task ? task.projectId : defaults?.projectId) ?? NO_PROJECT),
       tags: task?.tags.join(", ") ?? "",
     },
@@ -131,6 +135,7 @@ function TaskForm({ task, defaults, projects, onDone }: TaskFormProps) {
       status: values.status,
       priority: values.priority,
       dueDate: values.dueDate === "" ? null : values.dueDate,
+      dueTime: values.dueDate === "" || values.dueTime === "" ? null : values.dueTime,
       projectId: values.projectId === NO_PROJECT ? null : Number(values.projectId),
       tags: normalizeTags(values.tags.split(",")),
     };
@@ -186,7 +191,31 @@ function TaskForm({ task, defaults, projects, onDone }: TaskFormProps) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="task-due">Due date</Label>
-          <Input id="task-due" type="date" {...register("dueDate")} />
+          <Controller
+            control={control}
+            name="dueDate"
+            render={({ field }) => (
+              <DatePicker
+                id="task-due"
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="task-time">Time (optional)</Label>
+          <Controller
+            control={control}
+            name="dueTime"
+            render={({ field }) => (
+              <TimePicker
+                id="task-time"
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Project</Label>

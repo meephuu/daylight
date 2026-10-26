@@ -1,6 +1,7 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { ColorSwatches } from "@/components/ColorSwatches";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,6 +50,7 @@ function ProjectForm({ project, onDone }: { project: Project | null; onDone: () 
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -72,21 +74,18 @@ function ProjectForm({ project, onDone }: { project: Project | null; onDone: () 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-      <div className="flex gap-3">
-        <div className="flex flex-1 flex-col gap-1.5">
-          <Label htmlFor="project-name">Name</Label>
-          <Input id="project-name" autoFocus {...register("name")} />
-          {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="project-color">Colour</Label>
-          <Input
-            id="project-color"
-            type="color"
-            className="h-8 w-14 cursor-pointer p-1"
-            {...register("color")}
-          />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="project-name">Name</Label>
+        <Input id="project-name" autoFocus {...register("name")} />
+        {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>Colour</Label>
+        <Controller
+          control={control}
+          name="color"
+          render={({ field }) => <ColorSwatches value={field.value} onChange={field.onChange} allowCustom />}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="project-description">Description</Label>

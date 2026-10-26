@@ -1,6 +1,7 @@
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { ColorSwatches } from "@/components/ColorSwatches";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,21 +92,18 @@ function HabitForm({ habit, onDone }: { habit: Habit | null; onDone: () => void 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-      <div className="flex gap-3">
-        <div className="flex flex-1 flex-col gap-1.5">
-          <Label htmlFor="habit-name">Name</Label>
-          <Input id="habit-name" autoFocus placeholder="e.g. Training" {...register("name")} />
-          {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="habit-color">Colour</Label>
-          <Input
-            id="habit-color"
-            type="color"
-            className="h-8 w-14 cursor-pointer p-1"
-            {...register("color")}
-          />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="habit-name">Name</Label>
+        <Input id="habit-name" autoFocus placeholder="e.g. Training" {...register("name")} />
+        {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>Colour</Label>
+        <Controller
+          control={control}
+          name="color"
+          render={({ field }) => <ColorSwatches value={field.value} onChange={field.onChange} allowCustom />}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">

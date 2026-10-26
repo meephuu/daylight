@@ -42,6 +42,7 @@ export function QuickAdd({ dueDate, projectId, focusSignal }: QuickAddProps) {
       status: "todo",
       priority: "medium",
       dueDate,
+      dueTime: null,
       projectId,
       tags,
     });

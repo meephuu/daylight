@@ -2,7 +2,7 @@ import type { Task, TaskPriority } from "@/lib/db/tasks";
 import { addDays } from "date-fns";
 import { toDateString, todayString } from "@/lib/dates";
 
-export type TaskView = "today" | "upcoming" | "all";
+export type TaskView = "upcoming" | "done" | "all";
 
 export const PRIORITY_RANK: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
 
@@ -31,14 +31,13 @@ export function filterByProject(tasks: Task[], projectId: number | null): Task[]
   return projectId === null ? tasks : tasks.filter((task) => task.projectId === projectId);
 }
 
-/** Tasks that belong to a view, ignoring the project filter. */
+/** Tasks that belong to a view, ignoring the project filter. "Upcoming" is everything still to do. */
 export function tasksForView(tasks: Task[], view: TaskView): Task[] {
-  const today = todayString();
   switch (view) {
-    case "today":
-      return tasks.filter((t) => t.status !== "done" && t.dueDate !== null && t.dueDate <= today);
     case "upcoming":
-      return tasks.filter((t) => t.status !== "done" && t.dueDate !== null && t.dueDate > today);
+      return tasks.filter((t) => t.status !== "done");
+    case "done":
+      return tasks.filter((t) => t.status === "done");
     case "all":
       return tasks;
   }
@@ -68,19 +67,23 @@ export function dueTodayTasks(tasks: Task[]): Task[] {
 export function buildSections(tasks: Task[], view: TaskView): TaskSection[] {
   const today = todayString();
   const open = tasks.filter((t) => t.status !== "done").sort(compareOpen);
-
-  if (view === "today") {
-    return [
-      { key: "overdue", title: "Overdue", tasks: open.filter((t) => (t.dueDate ?? today) < today) },
-      { key: "today", title: "Today", tasks: open.filter((t) => t.dueDate === today) },
-    ].filter((section) => section.tasks.length > 0);
-  }
-  if (view === "upcoming") {
-    return open.length > 0 ? [{ key: "upcoming", title: null, tasks: open }] : [];
-  }
   const done = tasks.filter((t) => t.status === "done").sort(compareDone);
-  return [
-    { key: "open", title: null, tasks: open },
-    { key: "done", title: "Completed", tasks: done },
-  ].filter((section) => section.tasks.length > 0);
+
+  switch (view) {
+    case "upcoming":
+      // Everything still to do, nearest deadline first; overdue stands out at the top.
+      return [
+        { key: "overdue", title: "Overdue", tasks: open.filter((t) => t.dueDate !== null && t.dueDate < today) },
+        { key: "today", title: "Today", tasks: open.filter((t) => t.dueDate === today) },
+        { key: "later", title: "Later", tasks: open.filter((t) => t.dueDate !== null && t.dueDate > today) },
+        { key: "undated", title: "No date", tasks: open.filter((t) => t.dueDate === null) },
+      ].filter((section) => section.tasks.length > 0);
+    case "done":
+      return done.length > 0 ? [{ key: "done", title: null, tasks: done }] : [];
+    case "all":
+      return [
+        { key: "open", title: null, tasks: open },
+        { key: "done", title: "Completed", tasks: done },
+      ].filter((section) => section.tasks.length > 0);
+  }
 }

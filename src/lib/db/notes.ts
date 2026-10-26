@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_NOTE_HEIGHT, DEFAULT_NOTE_WIDTH } from "@/lib/notes";
 import { getDb } from "./client";
 
 export interface Note {
@@ -65,8 +66,8 @@ export async function listNotes(): Promise<Note[]> {
 export async function createNote(input: NewNote): Promise<void> {
   const db = await getDb();
   await db.execute(
-    `INSERT INTO notes (x, y, color, z_index) VALUES ($1, $2, $3, ${NEXT_Z_SQL})`,
-    [input.x, input.y, input.color],
+    `INSERT INTO notes (x, y, width, height, color, z_index) VALUES ($1, $2, $3, $4, $5, ${NEXT_Z_SQL})`,
+    [input.x, input.y, DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT, input.color],
   );
 }
 

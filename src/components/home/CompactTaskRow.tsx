@@ -1,5 +1,5 @@
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatDueDate, isOverdue } from "@/lib/dates";
+import { formatDueDateTime, isOverdue } from "@/lib/dates";
 import type { Project } from "@/lib/db/projects";
 import type { Task } from "@/lib/db/tasks";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ export function CompactTaskRow({ task, project, onToggle, showDate = false }: Co
             overdue && "font-medium text-red-500",
           )}
         >
-          {formatDueDate(task.dueDate)}
+          {formatDueDateTime(task.dueDate, task.dueTime)}
         </span>
       )}
     </li>

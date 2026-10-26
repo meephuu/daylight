@@ -12,6 +12,9 @@ export const NOTE_COLORS = [
 ];
 
 export const DEFAULT_NOTE_COLOR = "#fde68a";
+/** Size of a new post-it (also what migration 005 grew the never-resized ones to). */
+export const DEFAULT_NOTE_WIDTH = 280;
+export const DEFAULT_NOTE_HEIGHT = 260;
 export const MIN_NOTE_WIDTH = 160;
 export const MIN_NOTE_HEIGHT = 120;
 

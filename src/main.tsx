@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { getDb } from "@/lib/db/client";
 import { initTheme } from "@/lib/theme";
 import "./index.css";
@@ -11,6 +12,8 @@ getDb().catch((err: unknown) => console.error("Failed to open database", err));
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary fullScreen>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

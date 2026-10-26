@@ -2,7 +2,7 @@ import { CalendarDays, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatDueDate, isOverdue } from "@/lib/dates";
+import { formatDueDateTime, isOverdue } from "@/lib/dates";
 import type { Project } from "@/lib/db/projects";
 import type { Task, TaskPriority } from "@/lib/db/tasks";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export function TaskItem({ task, project, onToggle, onEdit, onDelete }: TaskItem
             {task.dueDate && (
               <span className={cn("flex items-center gap-1", overdue && "font-medium text-red-500")}>
                 <CalendarDays className="size-3" />
-                {formatDueDate(task.dueDate)}
+                {formatDueDateTime(task.dueDate, task.dueTime)}
               </span>
             )}
             {project && (

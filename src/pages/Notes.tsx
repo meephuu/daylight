@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { Plus, Search } from "lucide-react";
-import { ColorSwatches } from "@/components/notes/ColorSwatches";
+import { ColorSwatches } from "@/components/ColorSwatches";
 import { PostIt } from "@/components/notes/PostIt";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateNote, useMoveNote, useNotes } from "@/hooks/useNotes";
-import { DEFAULT_NOTE_COLOR, noteMatches } from "@/lib/notes";
+import { DEFAULT_NOTE_COLOR, DEFAULT_NOTE_WIDTH, NOTE_COLORS, noteMatches } from "@/lib/notes";
 
 const COLOR_STORAGE_KEY = "newNoteColor";
 const MIN_BOARD_WIDTH = 1600;
@@ -77,7 +77,7 @@ export default function NotesPage() {
     if (event.target !== event.currentTarget) return;
     const rect = event.currentTarget.getBoundingClientRect();
     createNote.mutate({
-      x: Math.max(0, Math.round(event.clientX - rect.left - 112)),
+      x: Math.max(0, Math.round(event.clientX - rect.left - DEFAULT_NOTE_WIDTH / 2)),
       y: Math.max(0, Math.round(event.clientY - rect.top - 16)),
       color: newColor,
     });
@@ -134,7 +134,7 @@ export default function NotesPage() {
             <Plus className="size-4" />
             New note
           </Button>
-          <ColorSwatches value={newColor} onChange={chooseColor} allowCustom />
+          <ColorSwatches value={newColor} colors={NOTE_COLORS} onChange={chooseColor} allowCustom />
         </div>
         <div className="relative ml-auto w-64">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -158,7 +158,7 @@ export default function NotesPage() {
         onPointerMove={handlePanMove}
         onPointerUp={handlePanEnd}
         onPointerCancel={handlePanEnd}
-        className={`board-scroll min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/30 ${
+        className={`min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/30 ${
           panning ? "cursor-grabbing" : "cursor-grab"
         }`}
       >

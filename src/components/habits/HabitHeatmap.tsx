@@ -6,7 +6,7 @@ import type { Habit } from "@/lib/db/habits";
 import { dailyCap, nextCount } from "@/lib/habits";
 
 const WEEKS = 26;
-const WEEKDAY_ROW_LABELS = ["Mon", "", "Wed", "", "Fri", "", ""];
+const WEEKDAY_ROW_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
 interface HabitHeatmapProps {
   habit: Habit;
@@ -19,16 +19,16 @@ interface HeatmapDay {
   future: boolean;
 }
 
-/** GitHub-style grid: one column per week (Mon-Sun rows), oldest on the left. */
+/** GitHub-style grid: one column per week (Sun-Sat rows), oldest on the left. */
 export function HabitHeatmap({ habit, countsByDate }: HabitHeatmapProps) {
   const setLog = useSetHabitLogCount();
   const today = todayString();
 
   const weeks = useMemo<HeatmapDay[][]>(() => {
-    const firstMonday = startOfWeek(subWeeks(new Date(), WEEKS - 1), { weekStartsOn: 1 });
+    const firstSunday = startOfWeek(subWeeks(new Date(), WEEKS - 1), { weekStartsOn: 0 });
     return Array.from({ length: WEEKS }, (_, w) =>
       Array.from({ length: 7 }, (_, d) => {
-        const day = addDays(firstMonday, w * 7 + d);
+        const day = addDays(firstSunday, w * 7 + d);
         const date = toDateString(day);
         return { date, label: format(day, "MMM d, yyyy"), future: date > today };
       }),

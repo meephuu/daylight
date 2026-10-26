@@ -5,18 +5,18 @@ import type { Habit, HabitLog } from "@/lib/db/habits";
 import type { Task } from "@/lib/db/tasks";
 
 export interface WeekRange {
-  /** Monday, "YYYY-MM-DD". */
-  start: string;
   /** Sunday, "YYYY-MM-DD". */
+  start: string;
+  /** Saturday, "YYYY-MM-DD". */
   end: string;
-  /** The seven days, Monday first. */
+  /** The seven days, Sunday first. */
   days: string[];
 }
 
 export function weekRange(cursor: Date): WeekRange {
-  const monday = startOfWeek(cursor, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }, (_, index) => toDateString(addDays(monday, index)));
-  return { start: days[0] ?? toDateString(monday), end: days[6] ?? toDateString(monday), days };
+  const sunday = startOfWeek(cursor, { weekStartsOn: 0 });
+  const days = Array.from({ length: 7 }, (_, index) => toDateString(addDays(sunday, index)));
+  return { start: days[0] ?? toDateString(sunday), end: days[6] ?? toDateString(sunday), days };
 }
 
 function inRange(date: string, range: WeekRange): boolean {

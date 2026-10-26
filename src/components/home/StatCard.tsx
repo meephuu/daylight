@@ -8,11 +8,12 @@ interface StatCardProps {
   icon: LucideIcon;
   /** Tailwind text colour class for the value and icon, e.g. "text-red-500". */
   accent?: string;
+  className?: string;
 }
 
-export function StatCard({ label, value, icon: Icon, accent }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, accent, className }: StatCardProps) {
   return (
-    <Card>
+    <Card className={cn("justify-center", className)}>
       <CardContent className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">{label}</p>

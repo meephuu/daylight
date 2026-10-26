@@ -1,39 +1,51 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { format, isSameMonth, isToday } from "date-fns";
-import { TaskChip } from "@/components/calendar/TaskChip";
+import { EntryChip } from "@/components/calendar/EntryChip";
 import type { CalendarMode } from "@/lib/calendar";
 import { toDateString } from "@/lib/dates";
-import type { Project } from "@/lib/db/projects";
-import type { Task } from "@/lib/db/tasks";
+import type { ScheduleEntry } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 
-/** Tasks shown per cell in month view before collapsing into "+N more". */
-const MONTH_VISIBLE_TASKS = 3;
+/** Entries shown per cell in month view before collapsing into "+N more". */
+const MONTH_VISIBLE_ENTRIES = 3;
 
-interface DraggableTaskChipProps {
-  task: Task;
-  project: Project | undefined;
-  onEdit: (task: Task) => void;
+/** Lower = shown first when space runs out. */
+const IMPORTANCE: Record<ScheduleEntry["kind"], number> = { task: 0, reminder: 1, event: 2 };
+
+interface EntryButtonProps {
+  entry: ScheduleEntry;
+  onEdit: (entry: ScheduleEntry) => void;
 }
 
-function DraggableTaskChip({ task, project, onEdit }: DraggableTaskChipProps) {
+/** Click opens the editor; the click must not fall through to the cell's "add" handler. */
+function handleEditClick(event: React.MouseEvent, entry: ScheduleEntry, onEdit: (entry: ScheduleEntry) => void) {
+  event.stopPropagation();
+  onEdit(entry);
+}
+
+function DraggableEntry({ entry, onEdit }: EntryButtonProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: task.id,
-    data: { task },
+    id: entry.key,
+    data: { entry },
   });
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      onClick={(event) => {
-        // Don't let the click fall through to the cell's "add task" handler.
-        event.stopPropagation();
-        onEdit(task);
-      }}
+      onClick={(event) => handleEditClick(event, entry, onEdit)}
       className={cn("cursor-grab touch-none", isDragging && "opacity-30")}
     >
-      <TaskChip task={task} project={project} />
+      <EntryChip entry={entry} />
+    </div>
+  );
+}
+
+/** One occurrence of a repeating item: edit it through the dialog; moving a single day makes no sense. */
+function StaticEntry({ entry, onEdit }: EntryButtonProps) {
+  return (
+    <div onClick={(event) => handleEditClick(event, entry, onEdit)} className="cursor-pointer">
+      <EntryChip entry={entry} />
     </div>
   );
 }
@@ -43,30 +55,28 @@ interface DayCellProps {
   /** Month being viewed; days outside it are dimmed (month view only). */
   cursor: Date;
   mode: CalendarMode;
-  tasks: Task[];
-  projectsById: Map<number, Project>;
+  entries: ScheduleEntry[];
   onAdd: (date: string) => void;
-  onEdit: (task: Task) => void;
+  onEdit: (entry: ScheduleEntry) => void;
   onShowDay: (day: Date) => void;
 }
 
-export function DayCell({
-  day,
-  cursor,
-  mode,
-  tasks,
-  projectsById,
-  onAdd,
-  onEdit,
-  onShowDay,
-}: DayCellProps) {
+export function DayCell({ day, cursor, mode, entries, onAdd, onEdit, onShowDay }: DayCellProps) {
   const date = toDateString(day);
   const { setNodeRef, isOver } = useDroppable({ id: date });
 
   const dimmed = mode === "month" && !isSameMonth(day, cursor);
-  const limit = mode === "month" ? MONTH_VISIBLE_TASKS : tasks.length;
-  const shown = tasks.slice(0, limit);
-  const hidden = tasks.length - shown.length;
+  const limit = mode === "month" ? MONTH_VISIBLE_ENTRIES : entries.length;
+  // When a day is too busy, "+N more" hides events and reminders before it hides tasks;
+  // whatever stays visible keeps its time order.
+  const keptKeys = new Set(
+    [...entries]
+      .sort((a, b) => IMPORTANCE[a.kind] - IMPORTANCE[b.kind])
+      .slice(0, limit)
+      .map((entry) => entry.key),
+  );
+  const shown = entries.filter((entry) => keptKeys.has(entry.key));
+  const hidden = entries.length - shown.length;
 
   return (
     <div
@@ -87,14 +97,13 @@ export function DayCell({
       >
         {mode === "week" ? format(day, "d") : day.getDate()}
       </span>
-      {shown.map((task) => (
-        <DraggableTaskChip
-          key={task.id}
-          task={task}
-          project={task.projectId === null ? undefined : projectsById.get(task.projectId)}
-          onEdit={onEdit}
-        />
-      ))}
+      {shown.map((entry) =>
+        entry.draggable ? (
+          <DraggableEntry key={entry.key} entry={entry} onEdit={onEdit} />
+        ) : (
+          <StaticEntry key={entry.key} entry={entry} onEdit={onEdit} />
+        ),
+      )}
       {hidden > 0 && (
         <button
           type="button"

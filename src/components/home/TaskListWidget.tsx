@@ -22,13 +22,13 @@ export function TaskListWidget({
   onToggle,
   emptyMessage,
   showDate = false,
-  limit = 6,
+  limit = 7,
 }: TaskListWidgetProps) {
   const shown = tasks.slice(0, limit);
   const hidden = tasks.length - shown.length;
 
   return (
-    <Card>
+    <Card className="h-full lg:min-h-80">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardAction>
@@ -37,9 +37,9 @@ export function TaskListWidget({
           </Link>
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         {tasks.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">{emptyMessage}</p>
+          <p className="my-auto py-4 text-center text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
           <ul className="divide-y">
             {shown.map((task) => (

@@ -140,22 +140,88 @@
   --viz-grid: #2c2c2a;
 }
 
-/* Notes board: slim white scrollbar, no track. */
-.board-scroll::-webkit-scrollbar {
+/*
+ * Scrollbars everywhere: a slim, rounded, grey-white bar with no track and no arrow buttons.
+ * White on the dark theme; a light grey on the light theme so it stays visible.
+ */
+*::-webkit-scrollbar {
   width: 12px;
   height: 12px;
 }
-.board-scroll::-webkit-scrollbar-track,
-.board-scroll::-webkit-scrollbar-corner {
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
   background: transparent;
 }
-.board-scroll::-webkit-scrollbar-thumb {
-  background-color: #ffffff;
+*::-webkit-scrollbar-button {
+  display: none;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #cfcfd6;
   background-clip: padding-box;
   border: 3px solid transparent;
   border-radius: 9999px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
 }
-.board-scroll::-webkit-scrollbar-thumb:hover {
+*::-webkit-scrollbar-thumb:hover {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.dark *::-webkit-scrollbar-thumb {
+  background-color: #ffffff;
+}
+
+/* Night stars: each star twinkles (scale + opacity) and wanders a few pixels along its own path, each on its own timing. */
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: var(--star-min, 0.25);
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+@keyframes star-wander {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: var(--x1, 6px) var(--y1, 4px);
+  }
+  50% {
+    translate: var(--x2, -5px) var(--y2, 7px);
+  }
+  75% {
+    translate: var(--x3, 4px) var(--y3, -6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .star {
+    animation: none !important;
+    opacity: 0.7;
+  }
+}
+
+/* Custom colour picker (react-colorful), restyled to match the app: rounded square + pill hue slider. */
+.color-picker.react-colorful {
+  width: 100%;
+  height: 176px;
+  gap: 10px;
+}
+.color-picker .react-colorful__saturation {
+  border-radius: 10px;
+  border-bottom: 0;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+.color-picker .react-colorful__hue {
+  flex: none;
+  height: 12px;
+  border-radius: 9999px;
+}
+.color-picker .react-colorful__pointer {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.25);
 }

@@ -17,6 +17,12 @@ export function isOverdue(dueDate: string | null): boolean {
   return isValid(date) && isBefore(date, startOfDay(new Date()));
 }
 
+/** "Today 14:30", "Tomorrow", "Mon, Oct 27 09:00" ... */
+export function formatDueDateTime(dueDate: string, dueTime: string | null): string {
+  const date = formatDueDate(dueDate);
+  return dueTime ? `${date} ${dueTime}` : date;
+}
+
 export function formatDueDate(dueDate: string): string {
   const date = parseISO(dueDate);
   if (!isValid(date)) return dueDate;

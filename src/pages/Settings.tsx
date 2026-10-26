@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAutostart, useSetAutostart } from "@/hooks/useAutostart";
+import { useAmbientPrefs } from "@/lib/ambient";
 import { useTheme, type Theme } from "@/lib/theme";
 
 const THEME_OPTIONS: { value: Theme; label: string; icon: LucideIcon }[] = [
@@ -13,6 +14,8 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: LucideIcon }[] = [
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const nightStars = useAmbientPrefs((state) => state.nightStars);
+  const setNightStars = useAmbientPrefs((state) => state.setNightStars);
   const autostart = useAutostart();
   const setAutostart = useSetAutostart();
 
@@ -33,6 +36,17 @@ export default function SettingsPage() {
             </Button>
           ))}
         </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-sm font-medium text-muted-foreground">Background</h2>
+        <div className="mt-2 flex items-center gap-3">
+          <Switch id="night-stars" checked={nightStars} onCheckedChange={setNightStars} />
+          <Label htmlFor="night-stars">Show twinkling stars at night</Label>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          The background glow still follows the time of day; this only turns the night stars on or off.
+        </p>
       </section>
 
       <section className="mt-8">

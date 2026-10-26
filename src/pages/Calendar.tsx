@@ -8,73 +8,92 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
+import { CalendarItemFormDialog } from "@/components/calendar/CalendarItemFormDialog";
 import { DayCell } from "@/components/calendar/DayCell";
-import { TaskChip } from "@/components/calendar/TaskChip";
+import { EntryChip } from "@/components/calendar/EntryChip";
 import { TaskFormDialog } from "@/components/TaskFormDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCalendarItems, useMoveCalendarItem, useOccurrenceStates } from "@/hooks/useCalendarItems";
 import { useProjects } from "@/hooks/useProjects";
 import { useSetTaskDueDate, useTasks } from "@/hooks/useTasks";
+import { stateMap } from "@/lib/calendarItems";
 import {
   formatRangeTitle,
   getVisibleDays,
-  groupTasksByDate,
   shiftCursor,
   WEEKDAY_LABELS,
   type CalendarMode,
 } from "@/lib/calendar";
-import { toDateString } from "@/lib/dates";
+import { toDateString, todayString } from "@/lib/dates";
+import type { CalendarItem, ItemKind } from "@/lib/db/calendarItems";
 import type { Task } from "@/lib/db/tasks";
+import { entriesByDate, type EntryKind, type ScheduleEntry } from "@/lib/schedule";
 
 export default function CalendarPage() {
   const [mode, setMode] = useState<CalendarMode>("month");
   const [cursor, setCursor] = useState(() => new Date());
-  const [dragging, setDragging] = useState<Task | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Task | null>(null);
-  const [newTaskDate, setNewTaskDate] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<ScheduleEntry | null>(null);
+
+  // What the "add" chooser is asking about, and which form is open after choosing.
+  const [chooserDate, setChooserDate] = useState<string | null>(null);
+  const [taskForm, setTaskForm] = useState<{ task: Task | null; dueDate: string | null } | null>(null);
+  const [itemForm, setItemForm] = useState<{
+    item: CalendarItem | null;
+    kind: ItemKind;
+    date: string;
+    occurrenceDate?: string;
+  } | null>(null);
 
   const tasksQuery = useTasks();
+  const itemsQuery = useCalendarItems();
+  const statesQuery = useOccurrenceStates();
   const projectsQuery = useProjects();
   const setDueDate = useSetTaskDueDate();
+  const moveItem = useMoveCalendarItem();
 
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
+  const states = useMemo(() => stateMap(statesQuery.data ?? []), [statesQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
-  const projectsById = useMemo(
-    () => new Map(projects.map((project) => [project.id, project])),
-    [projects],
-  );
 
   const days = useMemo(() => getVisibleDays(mode, cursor), [mode, cursor]);
-  const tasksByDate = useMemo(() => groupTasksByDate(tasks), [tasks]);
+  const entries = useMemo(
+    () => entriesByDate(days.map(toDateString), tasks, items, states),
+    [days, tasks, items, states],
+  );
 
   // A small movement threshold keeps plain clicks on a chip from starting a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   function handleDragStart(event: DragStartEvent) {
-    const task = event.active.data.current?.task as Task | undefined;
-    setDragging(task ?? null);
+    setDragging((event.active.data.current?.entry as ScheduleEntry | undefined) ?? null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const task = event.active.data.current?.task as Task | undefined;
+    const entry = event.active.data.current?.entry as ScheduleEntry | undefined;
     setDragging(null);
-    if (!task || !event.over) return;
+    if (!entry || !event.over) return;
     const newDate = String(event.over.id);
-    if (newDate !== task.dueDate) setDueDate.mutate({ id: task.id, dueDate: newDate });
+    if (newDate === entry.date) return;
+    if (entry.task) setDueDate.mutate({ id: entry.task.id, dueDate: newDate });
+    else if (entry.occurrence) moveItem.mutate({ id: entry.occurrence.item.id, startDate: newDate });
   }
 
-  function openNew(date: string) {
-    setEditing(null);
-    setNewTaskDate(date);
-    setFormOpen(true);
+  function handleChoose(kind: EntryKind, date: string) {
+    setChooserDate(null);
+    if (kind === "task") setTaskForm({ task: null, dueDate: date });
+    else setItemForm({ item: null, kind, date });
   }
 
-  function openEdit(task: Task) {
-    setEditing(task);
-    setNewTaskDate(null);
-    setFormOpen(true);
+  function handleEdit(entry: ScheduleEntry) {
+    if (entry.task) setTaskForm({ task: entry.task, dueDate: null });
+    else if (entry.occurrence) {
+      const { item, date } = entry.occurrence;
+      setItemForm({ item, kind: item.kind, date: item.startDate, occurrenceDate: date });
+    }
   }
 
   function showDay(day: Date) {
@@ -112,11 +131,17 @@ export default function CalendarPage() {
           >
             <ChevronRight className="size-4" />
           </Button>
+          <Button onClick={() => setChooserDate(todayString())}>
+            <Plus className="size-4" />
+            Add
+          </Button>
         </div>
       </div>
 
-      {tasksQuery.isError && (
-        <p className="text-sm text-destructive">Could not load tasks: {String(tasksQuery.error)}</p>
+      {(tasksQuery.isError || itemsQuery.isError) && (
+        <p className="text-sm text-destructive">
+          Could not load the calendar: {String(tasksQuery.error ?? itemsQuery.error)}
+        </p>
       )}
 
       <DndContext
@@ -141,37 +166,41 @@ export default function CalendarPage() {
                 day={day}
                 cursor={cursor}
                 mode={mode}
-                tasks={tasksByDate.get(toDateString(day)) ?? []}
-                projectsById={projectsById}
-                onAdd={openNew}
-                onEdit={openEdit}
+                entries={entries.get(toDateString(day)) ?? []}
+                onAdd={setChooserDate}
+                onEdit={handleEdit}
                 onShowDay={showDay}
               />
             ))}
           </div>
         </div>
         <DragOverlay>
-          {dragging && (
-            <TaskChip
-              task={dragging}
-              project={dragging.projectId === null ? undefined : projectsById.get(dragging.projectId)}
-              className="cursor-grabbing shadow-lg"
-            />
-          )}
+          {dragging && <EntryChip entry={dragging} className="cursor-grabbing shadow-lg" />}
         </DragOverlay>
       </DndContext>
 
       <p className="text-xs text-muted-foreground">
-        Click a day to add a task, click a task to edit it, or drag a task to another day to
-        reschedule. Tasks without a due date are not shown here.
+        Click a day to add a task, event or reminder. Click anything to edit it, or drag a task or one-off item to
+        another day. Repeating items change through their edit dialog. Tasks without a due date are not shown here.
       </p>
 
+      <AddToCalendarDialog date={chooserDate} onChoose={handleChoose} onClose={() => setChooserDate(null)} />
+
       <TaskFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        task={editing}
-        defaults={{ dueDate: newTaskDate }}
+        open={taskForm !== null}
+        onOpenChange={(open) => !open && setTaskForm(null)}
+        task={taskForm?.task ?? null}
+        defaults={{ dueDate: taskForm?.dueDate ?? null }}
         projects={projects}
+      />
+
+      <CalendarItemFormDialog
+        open={itemForm !== null}
+        onOpenChange={(open) => !open && setItemForm(null)}
+        item={itemForm?.item ?? null}
+        kind={itemForm?.kind ?? "event"}
+        defaultDate={itemForm?.date}
+        occurrenceDate={itemForm?.occurrenceDate}
       />
     </div>
   );

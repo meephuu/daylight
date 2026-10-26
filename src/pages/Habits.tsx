@@ -4,14 +4,13 @@ import { HabitCard } from "@/components/habits/HabitCard";
 import { HabitFormDialog } from "@/components/habits/HabitFormDialog";
 import { Button } from "@/components/ui/button";
 import {
-  useCreateHabit,
   useDeleteHabit,
   useHabitLogs,
   useHabits,
   useSetHabitArchived,
 } from "@/hooks/useHabits";
 import type { Habit } from "@/lib/db/habits";
-import { groupLogsByHabit, HABIT_PRESETS } from "@/lib/habits";
+import { groupLogsByHabit } from "@/lib/habits";
 
 export default function HabitsPage() {
   const [formOpen, setFormOpen] = useState(false);
@@ -20,7 +19,6 @@ export default function HabitsPage() {
 
   const habitsQuery = useHabits();
   const logsQuery = useHabitLogs();
-  const createHabit = useCreateHabit();
   const setArchived = useSetHabitArchived();
   const deleteHabit = useDeleteHabit();
 
@@ -29,9 +27,6 @@ export default function HabitsPage() {
 
   const visible = habits.filter((habit) => showArchived || !habit.archived);
   const archivedCount = habits.filter((habit) => habit.archived).length;
-  const missingPresets = HABIT_PRESETS.filter(
-    (preset) => !habits.some((habit) => habit.name.toLowerCase() === preset.name.toLowerCase()),
-  );
 
   function openForm(habit: Habit | null) {
     setEditing(habit);
@@ -60,29 +55,9 @@ export default function HabitsPage() {
         </p>
       )}
 
-      {missingPresets.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">
-            {habits.length === 0 ? "Start with:" : "Quick add:"}
-          </span>
-          {missingPresets.map((preset) => (
-            <Button
-              key={preset.name}
-              variant="outline"
-              size="sm"
-              onClick={() => createHabit.mutate(preset)}
-              disabled={createHabit.isPending}
-            >
-              <span className="size-2 rounded-full" style={{ backgroundColor: preset.color }} />
-              {preset.name}
-            </Button>
-          ))}
-        </div>
-      )}
-
       {visible.length === 0 && !habitsQuery.isPending && (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No habits yet. Pick one above or create your own.
+          No habits yet. Click “New habit” to create your first one.
         </p>
       )}
 

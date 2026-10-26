@@ -10,6 +10,7 @@ import HomePage from "@/pages/Home";
 import NotesPage from "@/pages/Notes";
 import ReviewPage from "@/pages/Review";
 import SettingsPage from "@/pages/Settings";
+import TrainingPage from "@/pages/Training";
 import TasksPage from "@/pages/Tasks";
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="habits" element={<HabitsPage />} />
             <Route path="focus" element={<FocusPage />} />
+            <Route path="training" element={<TrainingPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="expenses" element={<ExpensesPage />} />
             <Route path="review" element={<ReviewPage />} />

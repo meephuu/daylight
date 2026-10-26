@@ -1,14 +1,6 @@
 import { addDays, parseISO, startOfWeek } from "date-fns";
 import { toDateString } from "@/lib/dates";
-import type { Habit, HabitFrequency, HabitInput, HabitLog } from "@/lib/db/habits";
-
-/** One-click starters for the things tracked most often. */
-export const HABIT_PRESETS: HabitInput[] = [
-  { name: "Training", frequency: "daily", targetPerPeriod: 1, color: "#ef4444" },
-  { name: "Gaming", frequency: "daily", targetPerPeriod: 1, color: "#8b5cf6" },
-  { name: "Studying", frequency: "daily", targetPerPeriod: 1, color: "#3b82f6" },
-  { name: "Working", frequency: "daily", targetPerPeriod: 1, color: "#f59e0b" },
-];
+import type { Habit, HabitFrequency, HabitLog } from "@/lib/db/habits";
 
 export function groupLogsByHabit(logs: HabitLog[]): Map<number, HabitLog[]> {
   const groups = new Map<number, HabitLog[]>();
@@ -24,9 +16,9 @@ export function logCountsByDate(logs: HabitLog[]): Map<string, number> {
   return new Map(logs.map((log) => [log.date, log.count]));
 }
 
-/** Daily habits are counted per day, weekly habits per Monday-based week. */
+/** Daily habits are counted per day, weekly habits per Sunday-to-Saturday week. */
 function periodKey(frequency: HabitFrequency, date: string): string {
-  return frequency === "daily" ? date : toDateString(startOfWeek(parseISO(date), { weekStartsOn: 1 }));
+  return frequency === "daily" ? date : toDateString(startOfWeek(parseISO(date), { weekStartsOn: 0 }));
 }
 
 export interface StreakInfo {

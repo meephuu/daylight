@@ -28,6 +28,30 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/002_notes_board_and_settings.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "training",
+            sql: include_str!("../migrations/003_training.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "calendar_items",
+            sql: include_str!("../migrations/004_calendar_items.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "bigger_postits",
+            sql: include_str!("../migrations/005_bigger_postits.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "sunday_weeks",
+            sql: include_str!("../migrations/006_sunday_weeks.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

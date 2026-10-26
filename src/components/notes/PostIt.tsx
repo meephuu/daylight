@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Palette, Pin, PinOff, Trash2 } from "lucide-react";
-import { ColorSwatches } from "@/components/notes/ColorSwatches";
+import { ColorSwatches } from "@/components/ColorSwatches";
 import {
   useBringNoteToFront,
   useDeleteNote,
@@ -15,6 +15,7 @@ import {
   DRAGGING_Z,
   MIN_NOTE_HEIGHT,
   MIN_NOTE_WIDTH,
+  NOTE_COLORS,
   noteZIndex,
   readableTextColor,
 } from "@/lib/notes";
@@ -70,7 +71,10 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
   useEffect(() => {
     if (!paletteOpen) return;
     function onPointerDown(event: PointerEvent) {
-      if (!paletteRef.current?.contains(event.target as Node)) setPaletteOpen(false);
+      const target = event.target as Element;
+      // The custom-colour picker is a popover rendered outside the palette, so clicks in it do not count as outside.
+      if (paletteRef.current?.contains(target) || target.closest('[data-slot="popover-content"]')) return;
+      setPaletteOpen(false);
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -187,7 +191,12 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
           ref={paletteRef}
           className="absolute top-8 right-1 z-10 w-52 rounded-md bg-popover p-2 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
         >
-          <ColorSwatches value={note.color} onChange={(color) => setColor.mutate({ id: note.id, color })} allowCustom />
+          <ColorSwatches
+            value={note.color}
+            colors={NOTE_COLORS}
+            onChange={(color) => setColor.mutate({ id: note.id, color })}
+            allowCustom
+          />
         </div>
       )}
 
@@ -196,14 +205,14 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
         onChange={(event) => setTitle(event.target.value)}
         onBlur={() => saveRef.current()}
         placeholder="Title"
-        className="w-full bg-transparent px-2.5 pt-2 text-sm font-semibold outline-none placeholder:text-current placeholder:opacity-40"
+        className="w-full bg-transparent px-3 pt-2.5 text-base font-semibold outline-none placeholder:text-current placeholder:opacity-40"
       />
       <textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
         onBlur={() => saveRef.current()}
         placeholder="Write something…"
-        className="min-h-0 w-full flex-1 resize-none bg-transparent px-2.5 pt-1 pb-3 text-sm outline-none placeholder:text-current placeholder:opacity-40"
+        className="min-h-0 w-full flex-1 resize-none bg-transparent px-3 pt-1 pb-4 text-[15px] leading-relaxed outline-none placeholder:text-current placeholder:opacity-40"
       />
 
       <div

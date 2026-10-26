@@ -1,6 +1,7 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { DatePicker } from "@/components/pickers/DatePicker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -76,6 +77,7 @@ function ExpenseForm({ expense, categories, defaultDate, onDone }: ExpenseFormPr
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -113,7 +115,19 @@ function ExpenseForm({ expense, categories, defaultDate, onDone }: ExpenseFormPr
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="expense-date">Date</Label>
-          <Input id="expense-date" type="date" {...register("date")} />
+          <Controller
+            control={control}
+            name="date"
+            render={({ field }) => (
+              <DatePicker
+                id="expense-date"
+                value={field.value}
+                onChange={field.onChange}
+                clearable={false}
+                invalid={Boolean(errors.date)}
+              />
+            )}
+          />
           {errors.date && <p className="text-xs text-destructive">{errors.date.message}</p>}
         </div>
       </div>
