@@ -3,7 +3,7 @@ import { listSettings, setSetting } from "@/lib/db/settings";
 
 export const SETTINGS_KEY = ["settings"] as const;
 
-/** Raw key/value settings; feature hooks (expenses, focus timer) pick their own keys out of it. */
+/** Raw key/value settings; feature hooks (expenses, countdown) pick their own keys out of it. */
 export function useSettingsMap() {
   return useQuery({ queryKey: SETTINGS_KEY, queryFn: listSettings });
 }

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { format } from "date-fns";
 import { AlertTriangle, CalendarClock, CalendarDays } from "lucide-react";
+import { CountdownPanel } from "@/components/home/CountdownPanel";
 import { DayTimetable } from "@/components/home/DayTimetable";
 import { HabitStreakWidget } from "@/components/home/HabitStreakWidget";
 import { ProjectProgressWidget } from "@/components/home/ProjectProgressWidget";
@@ -14,7 +15,7 @@ import type { Task } from "@/lib/db/tasks";
 import { useGreeting } from "@/lib/greetings";
 import { dueTodayTasks, overdueTasks, upcomingWithin } from "@/lib/taskViews";
 
-const UPCOMING_DAYS = 7;
+const UPCOMING_DAYS = 30;
 
 export default function HomePage() {
   const tasksQuery = useTasks();
@@ -48,6 +49,8 @@ export default function HomePage() {
       </header>
 
       <DayTimetable />
+
+      <CountdownPanel tasks={tasks} projectsById={projectsById} />
 
       {(tasksQuery.isError || projectsQuery.isError) && (
         <p className="text-sm text-destructive">

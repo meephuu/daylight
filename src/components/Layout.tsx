@@ -14,8 +14,7 @@ import {
 import { AmbientBackground } from "@/components/ambient/AmbientBackground";
 import { TimeOfDayDebugPanel } from "@/components/ambient/TimeOfDayDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { FocusTimerRunner } from "@/components/focus/FocusTimerRunner";
-import { SidebarTimer } from "@/components/focus/SidebarTimer";
+import { Toaster } from "@/components/Toaster";
 import { TrayEvents } from "@/components/TrayEvents";
 import logo from "@/assets/logo.png";
 import { SHOW_TIME_DEBUG_PANEL } from "@/lib/ambient";
@@ -27,8 +26,6 @@ const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/habits", label: "Habits", icon: Repeat },
   { to: "/training", label: "Training", icon: Dumbbell },
-  // Focus is switched off for now. To bring it back, add { to: "/focus", label: "Focus", icon: Timer } here
-  // (and import Timer from lucide-react). The page, timer and saved sessions are all still in place.
   { to: "/notes", label: "Notes", icon: StickyNote },
   { to: "/expenses", label: "Expenses", icon: Wallet },
   { to: "/review", label: "Weekly review", icon: ClipboardCheck },
@@ -66,12 +63,12 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <SidebarTimer />
       </aside>
-      <FocusTimerRunner />
       <TrayEvents />
+      <Toaster />
       {SHOW_TIME_DEBUG_PANEL && <TimeOfDayDebugPanel />}
-      <main className="flex-1 overflow-y-auto p-8">
+      {/* relative: keeps absolutely positioned content (screen-reader tables) inside this scroll area instead of stretching the whole window */}
+      <main className="relative flex-1 overflow-y-auto p-8">
         {/* Keyed by route: a page that crashes shows a message, and opening another page recovers. */}
         <ErrorBoundary key={location.pathname}>
           <Outlet />

@@ -4,7 +4,6 @@ import { Layout } from "@/components/Layout";
 import { queryClient } from "@/lib/queryClient";
 import CalendarPage from "@/pages/Calendar";
 import ExpensesPage from "@/pages/Expenses";
-import FocusPage from "@/pages/Focus";
 import HabitsPage from "@/pages/Habits";
 import HomePage from "@/pages/Home";
 import NotesPage from "@/pages/Notes";
@@ -23,7 +22,6 @@ export default function App() {
             <Route path="tasks" element={<TasksPage />} />
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="habits" element={<HabitsPage />} />
-            <Route path="focus" element={<FocusPage />} />
             <Route path="training" element={<TrainingPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="expenses" element={<ExpensesPage />} />

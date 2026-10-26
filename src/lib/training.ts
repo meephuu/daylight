@@ -200,11 +200,12 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     description: "6 days: Upper, Upper, Lower, Rest, Upper, Running. Sunday off.",
     // Thursday has no workout: an empty day is shown as a rest day.
     workouts: [
+      upperDay(DAY.sun),
       upperDay(DAY.mon),
-      upperDay(DAY.tue),
-      lowerDay(DAY.wed),
+      runningDay(DAY.tue),
+      upperDay(DAY.thu),
       upperDay(DAY.fri),
-      runningDay(DAY.sat),
+      lowerDay(DAY.sat),
     ],
   },
   {

@@ -30,3 +30,11 @@ export function formatDueDate(dueDate: string): string {
   if (isTomorrow(date)) return "Tomorrow";
   return format(date, "EEE, MMM d");
 }
+
+/** 85 -> "1h 25m", 40 -> "40m". */
+export function formatMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}m`;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}

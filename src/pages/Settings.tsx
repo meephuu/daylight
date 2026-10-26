@@ -1,4 +1,6 @@
-import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { Monitor, Moon, Sun, Tags, type LucideIcon } from "lucide-react";
+import { CategoryManagerDialog } from "@/components/expenses/CategoryManagerDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +17,7 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: LucideIcon }[] = [
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const nightStars = useAmbientPrefs((state) => state.nightStars);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const setNightStars = useAmbientPrefs((state) => state.setNightStars);
   const autostart = useAutostart();
   const setAutostart = useSetAutostart();
@@ -47,6 +50,20 @@ export default function SettingsPage() {
         <p className="mt-1 text-xs text-muted-foreground">
           The background glow still follows the time of day; this only turns the night stars on or off.
         </p>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-sm font-medium text-muted-foreground">Expenses</h2>
+        <div className="mt-2">
+          <Button variant="outline" onClick={() => setCategoriesOpen(true)}>
+            <Tags className="size-4" />
+            Manage categories
+          </Button>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Add, rename, recolour, reorder or archive expense categories, and set a monthly budget for each.
+        </p>
+        <CategoryManagerDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
       </section>
 
       <section className="mt-8">

@@ -27,7 +27,7 @@ import {
 } from "@/hooks/useWorkouts";
 import { todayString } from "@/lib/dates";
 import type { Workout } from "@/lib/db/workouts";
-import { formatMinutes } from "@/lib/focusTimer";
+import { formatMinutes } from "@/lib/dates";
 import { weekRange } from "@/lib/review";
 import {
   dayDropId,

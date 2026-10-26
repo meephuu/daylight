@@ -1,8 +1,12 @@
-import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Cell, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export interface BarDatum {
   label: string;
   value: number;
+  /** Colour of this bar; the chart default (blue) when omitted. */
+  color?: string;
+  /** Identifies the bar to `onSelect`; bars without one cannot be selected. */
+  id?: number;
 }
 
 interface HorizontalBarChartProps {
@@ -15,6 +19,10 @@ interface HorizontalBarChartProps {
   tableHeaders: [string, string];
   tableCaption: string;
   emptyMessage: string;
+  /** Makes bars clickable. */
+  onSelect?: (item: BarDatum) => void;
+  /** Label of the highlighted bar; the others are dimmed. */
+  selectedLabel?: string | null;
 }
 
 const ROW_HEIGHT = 36;
@@ -31,6 +39,8 @@ export function HorizontalBarChart({
   tableHeaders,
   tableCaption,
   emptyMessage,
+  onSelect,
+  selectedLabel = null,
 }: HorizontalBarChartProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
@@ -67,14 +77,32 @@ export function HorizontalBarChart({
                   <div className="rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
                     <p className="font-medium">{item.label}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-muted-foreground">
-                      <span className="size-2 rounded-full" style={{ backgroundColor: "var(--viz-bar)" }} />
+                      <span className="size-2 rounded-full" style={{ backgroundColor: item.color ?? "var(--viz-bar)" }} />
                       {formatTooltip(item, total === 0 ? 0 : item.value / total)}
                     </p>
                   </div>
                 );
               }}
             />
-            <Bar dataKey="value" fill="var(--viz-bar)" barSize={20} radius={[0, 4, 4, 0]} isAnimationActive={false}>
+            <Bar
+              dataKey="value"
+              fill="var(--viz-bar)"
+              barSize={20}
+              radius={[0, 4, 4, 0]}
+              isAnimationActive={false}
+              cursor={onSelect ? "pointer" : undefined}
+              onClick={(_, index) => {
+                const item = data[index];
+                if (onSelect && item && item.id !== undefined) onSelect(item);
+              }}
+            >
+              {data.map((item) => (
+                <Cell
+                  key={item.label}
+                  fill={item.color ?? "var(--viz-bar)"}
+                  fillOpacity={selectedLabel === null || selectedLabel === item.label ? 1 : 0.3}
+                />
+              ))}
               <LabelList
                 dataKey="value"
                 position="right"

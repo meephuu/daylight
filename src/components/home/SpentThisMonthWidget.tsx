@@ -3,14 +3,16 @@ import { Link } from "react-router-dom";
 import { BudgetMeter } from "@/components/expenses/BudgetMeter";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useExpenseSettings, useExpenses } from "@/hooks/useExpenses";
-import { expensesInMonth, formatMoney, monthKey, sumAmounts } from "@/lib/expenses";
+import { bangkokMonthKey } from "@/lib/bangkok";
+import { confirmedOnly, expensesInMonth, sumSatang } from "@/lib/expenses";
+import { formatTHB } from "@/lib/money";
 
 export function SpentThisMonthWidget() {
   const expensesQuery = useExpenses();
   const settings = useExpenseSettings();
 
   const spent = useMemo(
-    () => sumAmounts(expensesInMonth(expensesQuery.data ?? [], monthKey(new Date()))),
+    () => sumSatang(expensesInMonth(confirmedOnly(expensesQuery.data ?? []), bangkokMonthKey())),
     [expensesQuery.data],
   );
 
@@ -25,9 +27,9 @@ export function SpentThisMonthWidget() {
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <p className="text-3xl font-semibold">{formatMoney(spent, settings.currency)}</p>
-        {settings.budget !== null ? (
-          <BudgetMeter spent={spent} budget={settings.budget} currency={settings.currency} />
+        <p className="text-3xl font-semibold">{formatTHB(spent)}</p>
+        {settings.budgetSatang !== null ? (
+          <BudgetMeter spentSatang={spent} budgetSatang={settings.budgetSatang} />
         ) : (
           <p className="text-sm text-muted-foreground">
             No budget set. <Link to="/expenses" className="underline">Set one</Link> to track what is left.

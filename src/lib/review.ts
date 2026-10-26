@@ -1,6 +1,5 @@
 import { addDays, parseISO, startOfWeek } from "date-fns";
 import { toDateString } from "@/lib/dates";
-import type { FocusSession } from "@/lib/db/focusSessions";
 import type { Habit, HabitLog } from "@/lib/db/habits";
 import type { Task } from "@/lib/db/tasks";
 
@@ -47,25 +46,6 @@ export function slippedInWeek(tasks: Task[], range: WeekRange, today: string): T
       return !doneOnTime;
     })
     .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
-}
-
-export interface ProjectFocus {
-  projectId: number | null;
-  minutes: number;
-  sessions: number;
-}
-
-/** Focus minutes per project for the week, biggest first; sessions without a project are grouped. */
-export function focusByProject(sessions: FocusSession[], range: WeekRange): ProjectFocus[] {
-  const totals = new Map<number | null, ProjectFocus>();
-  for (const session of sessions) {
-    if (!inRange(localDate(session.startedAt), range)) continue;
-    const entry = totals.get(session.projectId) ?? { projectId: session.projectId, minutes: 0, sessions: 0 };
-    entry.minutes += session.durationMinutes;
-    entry.sessions += 1;
-    totals.set(session.projectId, entry);
-  }
-  return [...totals.values()].sort((a, b) => b.minutes - a.minutes);
 }
 
 /** "pending" is today while still unmet: not yet a miss, and left out of the score. */

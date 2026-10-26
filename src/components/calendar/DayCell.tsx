@@ -66,6 +66,7 @@ export function DayCell({ day, cursor, mode, entries, onAdd, onEdit, onShowDay }
   const { setNodeRef, isOver } = useDroppable({ id: date });
 
   const dimmed = mode === "month" && !isSameMonth(day, cursor);
+  const isWeekday = day.getDay() >= 1 && day.getDay() <= 5;
   const limit = mode === "month" ? MONTH_VISIBLE_ENTRIES : entries.length;
   // When a day is too busy, "+N more" hides events and reminders before it hides tasks;
   // whatever stays visible keeps its time order.
@@ -85,6 +86,8 @@ export function DayCell({ day, cursor, mode, entries, onAdd, onEdit, onShowDay }
       className={cn(
         "flex cursor-pointer flex-col gap-1 border-r border-b p-1.5 transition-colors hover:bg-accent/40",
         mode === "month" ? "min-h-28" : "min-h-80",
+        // Weekdays are a touch darker than Saturday and Sunday, so the weekend stands out.
+        isWeekday && "bg-black/[0.05] dark:bg-black/[0.18]",
         dimmed && "bg-muted/30 text-muted-foreground",
         isOver && "bg-accent",
       )}
