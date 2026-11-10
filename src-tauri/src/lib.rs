@@ -75,6 +75,24 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/009_weekly_reflections.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 10,
+            description: "habit order",
+            sql: include_str!("../migrations/010_habit_order.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 11,
+            description: "note images",
+            sql: include_str!("../migrations/011_note_images.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 12,
+            description: "workout history",
+            sql: include_str!("../migrations/012_workout_history.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -185,6 +203,9 @@ pub fn run() {
     backup_database_once(&context.config().identifier, "before-expenses-v2");
     backup_database_once(&context.config().identifier, "before-recurring-expenses");
     backup_database_once(&context.config().identifier, "before-weekly-reflections");
+    backup_database_once(&context.config().identifier, "before-habit-order");
+    backup_database_once(&context.config().identifier, "before-note-images");
+    backup_database_once(&context.config().identifier, "before-workout-history");
 
     tauri::Builder::default()
         // Must be registered first. A second launch just surfaces the running window instead of

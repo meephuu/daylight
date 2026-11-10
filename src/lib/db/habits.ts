@@ -12,6 +12,8 @@ export interface Habit {
   targetPerPeriod: number;
   color: string;
   archived: boolean;
+  /** Position among habits, 1 = first; set by dragging on the Habits page. */
+  sortOrder: number;
   createdAt: string;
 }
 
@@ -36,6 +38,7 @@ const habitRowSchema = z.object({
   target_per_period: z.number(),
   color: z.string(),
   archived: z.number(),
+  sort_order: z.number(),
   created_at: z.string(),
 });
 
@@ -49,7 +52,7 @@ const habitLogRowSchema = z.object({
 export async function listHabits(): Promise<Habit[]> {
   const db = await getDb();
   const rows = await db.select<unknown>(
-    "SELECT id, name, frequency, target_per_period, color, archived, created_at FROM habits ORDER BY archived, id",
+    "SELECT id, name, frequency, target_per_period, color, archived, sort_order, created_at FROM habits ORDER BY archived, sort_order, id",
   );
   return z.array(habitRowSchema).parse(rows).map((row) => ({
     id: row.id,
@@ -58,6 +61,7 @@ export async function listHabits(): Promise<Habit[]> {
     targetPerPeriod: row.target_per_period,
     color: row.color,
     archived: row.archived === 1,
+    sortOrder: row.sort_order,
     createdAt: row.created_at,
   }));
 }
@@ -76,7 +80,8 @@ export async function listHabitLogs(): Promise<HabitLog[]> {
 export async function createHabit(input: HabitInput): Promise<void> {
   const db = await getDb();
   await db.execute(
-    "INSERT INTO habits (name, frequency, target_per_period, color) VALUES ($1, $2, $3, $4)",
+    `INSERT INTO habits (name, frequency, target_per_period, color, sort_order)
+     VALUES ($1, $2, $3, $4, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM habits))`,
     [input.name, input.frequency, input.targetPerPeriod, input.color],
   );
 }
@@ -112,4 +117,12 @@ export async function setHabitLogCount(habitId: number, date: string, count: num
      ON CONFLICT (habit_id, date) DO UPDATE SET count = excluded.count`,
     [habitId, date, count],
   );
+}
+
+/** Saves a new order: the first id becomes 1, the next 2, and so on. */
+export async function reorderHabits(orderedIds: number[]): Promise<void> {
+  const db = await getDb();
+  for (const [index, id] of orderedIds.entries()) {
+    await db.execute("UPDATE habits SET sort_order = $1 WHERE id = $2", [index + 1, id]);
+  }
 }

@@ -1,22 +1,27 @@
 import { useState } from "react";
+import { useConfirm } from "@/hooks/useConfirm";
 import { PlanCard } from "@/components/training/PlanCard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCreateWorkouts, useReplaceWorkouts, useWorkouts } from "@/hooks/useWorkouts";
-import { WORKOUT_TEMPLATES, type WorkoutTemplate } from "@/lib/training";
+import { WORKOUT_TEMPLATES, workoutsForWeek, type WorkoutTemplate } from "@/lib/training";
 
 interface PlansDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The week being viewed: a plan is applied from this week onward. */
+  weekStart: string;
 }
 
 type Mode = "add" | "replace";
 
-export function PlansDialog({ open, onOpenChange }: PlansDialogProps) {
+export function PlansDialog({ open, onOpenChange, weekStart }: PlansDialogProps) {
   const [mode, setMode] = useState<Mode>("add");
-  const existing = useWorkouts().data ?? [];
+  const allWorkouts = useWorkouts().data;
+  const existing = workoutsForWeek(allWorkouts ?? [], weekStart);
   const createWorkouts = useCreateWorkouts();
   const replaceWorkouts = useReplaceWorkouts();
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const hasPlan = existing.length > 0;
   const replacing = hasPlan && mode === "replace";
@@ -24,16 +29,16 @@ export function PlansDialog({ open, onOpenChange }: PlansDialogProps) {
   const count = `${existing.length} workout${existing.length === 1 ? "" : "s"}`;
 
   async function apply(template: WorkoutTemplate) {
-    if (
-      replacing &&
-      !window.confirm(
-        `Replace your current plan (${count}) with "${template.name}"? The old workouts and their completion history will be deleted.`,
-      )
-    ) {
-      return;
+    if (replacing) {
+      const confirmed = await confirm({
+        title: "Replace your current plan?",
+        description: `Your current plan (${count}) will be replaced with “${template.name}” from this week onward. Earlier weeks keep their workouts and completion history.`,
+        confirmLabel: "Replace plan",
+      });
+      if (!confirmed) return;
     }
-    if (replacing) await replaceWorkouts.mutateAsync(template.workouts);
-    else await createWorkouts.mutateAsync(template.workouts);
+    if (replacing) await replaceWorkouts.mutateAsync({ inputs: template.workouts, weekStart });
+    else await createWorkouts.mutateAsync({ inputs: template.workouts, weekStart });
     onOpenChange(false);
   }
 
@@ -71,8 +76,8 @@ export function PlansDialog({ open, onOpenChange }: PlansDialogProps) {
             </div>
             <p className="text-xs text-muted-foreground">
               {mode === "add"
-                ? "The plan's workouts are added next to the ones you already have."
-                : `Your ${count} and their history are removed first.`}
+                ? "The plan's workouts are added from this week onward, next to the ones you already have."
+                : `Your ${count} are replaced from this week onward. Earlier weeks are not changed.`}
             </p>
           </div>
         )}
@@ -82,6 +87,7 @@ export function PlansDialog({ open, onOpenChange }: PlansDialogProps) {
             <PlanCard key={template.id} template={template} onSelect={(chosen) => void apply(chosen)} disabled={busy} />
           ))}
         </div>
+        {confirmDialog}
       </DialogContent>
     </Dialog>
   );

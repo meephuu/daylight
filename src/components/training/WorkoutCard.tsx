@@ -45,6 +45,8 @@ export function WorkoutCardBody({
         checked={done}
         onCheckedChange={() => onToggle(workout)}
         onPointerDown={(event) => event.stopPropagation()}
+        // Ticking a workout must not also open it for editing (the card itself is clickable).
+        onClick={(event) => event.stopPropagation()}
         aria-label={done ? "Mark as not done" : "Mark as done"}
         className="mt-0.5"
       />

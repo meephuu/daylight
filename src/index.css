@@ -149,6 +149,8 @@
 /*
  * Scrollbars everywhere: a slim, rounded, grey-white bar with no track and no arrow buttons.
  * White on the dark theme; a light grey on the light theme so it stays visible.
+ * They are invisible at rest and appear while something scrolls (lib/scrollbars.ts sets
+ * --sb-alpha on the scrolling element and fades it out slowly), or while the pointer is on the bar.
  */
 *::-webkit-scrollbar {
   width: 12px;
@@ -162,17 +164,29 @@
   display: none;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #cfcfd6;
+  background-color: rgb(var(--sb-thumb) / var(--sb-alpha, 0));
   background-clip: padding-box;
   border: 3px solid transparent;
   border-radius: 9999px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / calc(0.14 * var(--sb-alpha, 0)));
 }
-*::-webkit-scrollbar-thumb:hover {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background-color: rgb(var(--sb-thumb));
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
 }
-.dark *::-webkit-scrollbar-thumb {
-  background-color: #ffffff;
+/* For areas that scroll (wheel, trackpad, drag) but should not show a bar at all, like the notes board. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+:root {
+  --sb-thumb: 207 207 214;
+}
+.dark {
+  --sb-thumb: 255 255 255;
 }
 
 /* Night stars: each star twinkles (scale + opacity) and wanders a few pixels along its own path, each on its own timing. */

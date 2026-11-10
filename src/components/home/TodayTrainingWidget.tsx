@@ -5,7 +5,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { useSetWorkoutDone, useWorkoutLogs, useWorkouts } from "@/hooks/useWorkouts";
 import { todayString } from "@/lib/dates";
 import { weekRange } from "@/lib/review";
-import { CATEGORY_INFO, dayIndexOf, logKey, logKeys } from "@/lib/training";
+import { appliesToWeek, CATEGORY_INFO, dayIndexOf, logKey, logKeys } from "@/lib/training";
 import { workoutTimeLabel } from "@/components/training/WorkoutCard";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +20,8 @@ export function TodayTrainingWidget() {
 
   const all = workoutsQuery.data ?? [];
   const todays = useMemo(
-    () => all.filter((workout) => workout.dayOfWeek === dayIndexOf(today)),
-    [all, today],
+    () => all.filter((workout) => workout.dayOfWeek === dayIndexOf(today) && appliesToWeek(workout, weekStart)),
+    [all, today, weekStart],
   );
 
   return (

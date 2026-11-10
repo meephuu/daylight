@@ -27,6 +27,7 @@ import {
   type ItemKind,
 } from "@/lib/db/calendarItems";
 import { DAY_SHORT } from "@/lib/training";
+import { useConfirm } from "@/hooks/useConfirm";
 import { cn } from "@/lib/utils";
 
 const TIME_PATTERN = /^(\d{2}:\d{2})?$/;
@@ -117,6 +118,7 @@ function ItemForm({ item, kind, defaultDate, occurrenceDate, onDone }: ItemFormP
   const createItem = useCreateCalendarItem();
   const updateItem = useUpdateCalendarItem();
   const deleteItem = useDeleteCalendarItem();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const setState = useSetOccurrenceState();
 
   const startDate = item?.startDate ?? defaultDate;
@@ -165,10 +167,14 @@ function ItemForm({ item, kind, defaultDate, occurrenceDate, onDone }: ItemFormP
 
   async function handleDelete() {
     if (!item) return;
-    const message = isRepeatingItem
-      ? `Delete "${item.title}" and ALL of its repeats?`
-      : `Delete "${item.title}"?`;
-    if (!window.confirm(message)) return;
+    const confirmed = await confirm({
+      title: isRepeatingItem ? "Delete repeating item?" : "Delete item?",
+      description: isRepeatingItem
+        ? `“${item.title}” and all of its repeats will be permanently deleted. This can’t be undone.`
+        : `“${item.title}” will be permanently deleted. This can’t be undone.`,
+      confirmLabel: isRepeatingItem ? "Delete all repeats" : "Delete",
+    });
+    if (!confirmed) return;
     await deleteItem.mutateAsync(item.id);
     onDone();
   }
@@ -360,6 +366,7 @@ function ItemForm({ item, kind, defaultDate, occurrenceDate, onDone }: ItemFormP
           </Button>
         </div>
       </DialogFooter>
+      {confirmDialog}
     </form>
   );
 }

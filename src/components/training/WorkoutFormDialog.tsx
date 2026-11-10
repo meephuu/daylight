@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useCreateWorkout, useDeleteWorkout, useUpdateWorkout } from "@/hooks/useWorkouts";
 import { WORKOUT_CATEGORIES, type Workout, type WorkoutInput } from "@/lib/db/workouts";
 import { CATEGORY_INFO, DAY_NAMES } from "@/lib/training";
@@ -42,16 +43,18 @@ interface WorkoutFormDialogProps {
   workout?: Workout | null;
   /** Day preselected for a new workout (0 = Sunday). */
   defaultDay?: number;
+  /** The week being viewed: changes apply from this week onward, earlier weeks keep what they had. */
+  weekStart: string;
 }
 
-export function WorkoutFormDialog({ open, onOpenChange, workout, defaultDay }: WorkoutFormDialogProps) {
+export function WorkoutFormDialog({ open, onOpenChange, workout, defaultDay, weekStart }: WorkoutFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{workout ? "Edit workout" : "New workout"}</DialogTitle>
         </DialogHeader>
-        <WorkoutForm workout={workout ?? null} defaultDay={defaultDay ?? 0} onDone={() => onOpenChange(false)} />
+        <WorkoutForm workout={workout ?? null} defaultDay={defaultDay ?? 0} weekStart={weekStart} onDone={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   );
@@ -60,13 +63,15 @@ export function WorkoutFormDialog({ open, onOpenChange, workout, defaultDay }: W
 interface WorkoutFormProps {
   workout: Workout | null;
   defaultDay: number;
+  weekStart: string;
   onDone: () => void;
 }
 
-function WorkoutForm({ workout, defaultDay, onDone }: WorkoutFormProps) {
+function WorkoutForm({ workout, defaultDay, weekStart, onDone }: WorkoutFormProps) {
   const createWorkout = useCreateWorkout();
   const updateWorkout = useUpdateWorkout();
   const deleteWorkout = useDeleteWorkout();
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const {
     register,
@@ -111,15 +116,20 @@ function WorkoutForm({ workout, defaultDay, onDone }: WorkoutFormProps) {
           weight: exercise.weight === "" ? null : Number(exercise.weight.replace(",", ".")),
         })),
     };
-    if (workout) await updateWorkout.mutateAsync({ id: workout.id, input });
-    else await createWorkout.mutateAsync(input);
+    if (workout) await updateWorkout.mutateAsync({ id: workout.id, input, weekStart });
+    else await createWorkout.mutateAsync({ input, weekStart });
     onDone();
   }
 
   async function handleDelete() {
     if (!workout) return;
-    if (!window.confirm(`Delete "${workout.title}" and its completion history?`)) return;
-    await deleteWorkout.mutateAsync(workout.id);
+    const confirmed = await confirm({
+      title: "Delete workout?",
+      description: `“${workout.title}” will be removed from this week onward. Earlier weeks keep it and their completion history.`,
+      confirmLabel: "Delete workout",
+    });
+    if (!confirmed) return;
+    await deleteWorkout.mutateAsync({ id: workout.id, weekStart });
     onDone();
   }
 
@@ -235,6 +245,7 @@ function WorkoutForm({ workout, defaultDay, onDone }: WorkoutFormProps) {
           </Button>
         </div>
       </DialogFooter>
+      {confirmDialog}
     </form>
   );
 }

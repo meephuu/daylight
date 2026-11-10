@@ -7,6 +7,7 @@ import { TaskFormDialog } from "@/components/TaskFormDialog";
 import { TaskItem } from "@/components/TaskItem";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useProjects } from "@/hooks/useProjects";
 import { useDeleteTask, useSetTaskStatus, useTasks } from "@/hooks/useTasks";
 import type { Task } from "@/lib/db/tasks";
@@ -41,6 +42,7 @@ export default function TasksPage() {
   const projectsQuery = useProjects();
   const setStatus = useSetTaskStatus();
   const deleteTask = useDeleteTask();
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
@@ -72,8 +74,13 @@ export default function TasksPage() {
     setStatus.mutate({ id: task.id, status: task.status === "done" ? "todo" : "done" });
   }
 
-  function handleDelete(task: Task) {
-    if (window.confirm(`Delete task "${task.title}"?`)) deleteTask.mutate(task.id);
+  async function handleDelete(task: Task) {
+    const confirmed = await confirm({
+      title: "Delete task?",
+      description: `“${task.title}” will be permanently deleted. This can’t be undone.`,
+      confirmLabel: "Delete task",
+    });
+    if (confirmed) deleteTask.mutate(task.id);
   }
 
   const selectedProject = projectId === null ? undefined : projectsById.get(projectId);
@@ -148,6 +155,7 @@ export default function TasksPage() {
         <ProjectsPanel projects={projects} selectedId={projectId} onSelect={setProjectId} />
       </aside>
 
+      {confirmDialog}
       <TaskFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}

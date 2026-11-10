@@ -8,7 +8,7 @@ import type { Task } from "@/lib/db/tasks";
 import type { Workout, WorkoutLog } from "@/lib/db/workouts";
 import { categoryTotals, sumSatang, type CategoryTotal } from "@/lib/expenses";
 import { completedInWeek, habitWeek, overallConsistency, slippedInWeek, weekRange, type HabitWeek, type WeekRange } from "@/lib/review";
-import { logKeys, logKey, summarizeWeek, workoutDate, type WeekSummary } from "@/lib/training";
+import { logKeys, logKey, summarizeWeek, workoutDate, workoutsForWeek, type WeekSummary } from "@/lib/training";
 
 export interface WeekInputs {
   tasks: Task[];
@@ -105,6 +105,7 @@ export function buildWeekReport(inputs: WeekInputs, range: WeekRange, today: str
   // ---- training
   const weekLogs = workoutLogs.filter((log) => log.weekStart === range.start);
   const training = summarizeWeek(workouts, weekLogs, range.start, today);
+  const weekWorkouts = workoutsForWeek(workouts, range.start);
   const doneKeys = logKeys(weekLogs);
 
   // ---- money
@@ -125,7 +126,7 @@ export function buildWeekReport(inputs: WeekInputs, range: WeekRange, today: str
       return status !== undefined && status !== "future" && status !== "before";
     }).length;
     const met = habitWeeks.filter((week) => week.days[index] === "met" || week.days[index] === "logged").length;
-    const planned = workouts.filter((workout) => workoutDate(range.start, workout.dayOfWeek) === date);
+    const planned = weekWorkouts.filter((workout) => workoutDate(range.start, workout.dayOfWeek) === date);
     return {
       date,
       tasksDone: completed.filter((task) => task.completedAt !== null && localDate(task.completedAt) === date).length,

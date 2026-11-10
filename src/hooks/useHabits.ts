@@ -4,9 +4,11 @@ import {
   deleteHabit,
   listHabitLogs,
   listHabits,
+  reorderHabits,
   setHabitArchived,
   setHabitLogCount,
   updateHabit,
+  type Habit,
   type HabitInput,
 } from "@/lib/db/habits";
 
@@ -58,4 +60,28 @@ export function useSetHabitLogCount() {
     ({ habitId, date, count }: { habitId: number; date: string; count: number }) =>
       setHabitLogCount(habitId, date, count),
   );
+}
+
+/** Optimistic: the cards jump to their new places at once, and snap back if saving fails. */
+export function useReorderHabits() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: number[]) => reorderHabits(orderedIds),
+    onMutate: async (orderedIds) => {
+      await queryClient.cancelQueries({ queryKey: HABITS_KEY });
+      const previous = queryClient.getQueryData<Habit[]>(HABITS_KEY);
+      queryClient.setQueryData<Habit[]>(HABITS_KEY, (habits) => {
+        if (!habits) return habits;
+        const position = new Map(orderedIds.map((id, index) => [id, index + 1]));
+        return [...habits]
+          .map((habit) => ({ ...habit, sortOrder: position.get(habit.id) ?? habit.sortOrder }))
+          .sort((a, b) => Number(a.archived) - Number(b.archived) || a.sortOrder - b.sortOrder || a.id - b.id);
+      });
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(HABITS_KEY, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: HABITS_KEY }),
+  });
 }

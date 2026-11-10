@@ -36,37 +36,45 @@ function useWorkoutMutation<TVariables>(mutationFn: (variables: TVariables) => P
   });
 }
 
+// Every plan change takes the week being looked at: it applies from that week onward and earlier weeks keep
+// what they had (see lib/db/workouts.ts).
+
 export function useCreateWorkout() {
-  return useWorkoutMutation((input: WorkoutInput) => createWorkout(input));
+  return useWorkoutMutation(({ input, weekStart }: { input: WorkoutInput; weekStart: string }) =>
+    createWorkout(input, weekStart),
+  );
 }
 
 export function useUpdateWorkout() {
-  return useWorkoutMutation(({ id, input }: { id: number; input: WorkoutInput }) =>
-    updateWorkout(id, input),
+  return useWorkoutMutation(({ id, input, weekStart }: { id: number; input: WorkoutInput; weekStart: string }) =>
+    updateWorkout(id, input, weekStart),
   );
 }
 
 export function useDeleteWorkout() {
-  return useWorkoutMutation((id: number) => deleteWorkout(id));
+  return useWorkoutMutation(({ id, weekStart }: { id: number; weekStart: string }) => deleteWorkout(id, weekStart));
 }
 
 /** Adds every workout of a starter plan, one after another. */
 export function useCreateWorkouts() {
-  return useWorkoutMutation(async (inputs: WorkoutInput[]) => {
-    for (const input of inputs) await createWorkout(input);
+  return useWorkoutMutation(async ({ inputs, weekStart }: { inputs: WorkoutInput[]; weekStart: string }) => {
+    for (const input of inputs) await createWorkout(input, weekStart);
   });
 }
 
-/** Throws away the current plan and installs a starter plan in its place. */
+/** Replaces the plan from this week onward with a starter plan; earlier weeks are left alone. */
 export function useReplaceWorkouts() {
-  return useWorkoutMutation((inputs: WorkoutInput[]) => replaceAllWorkouts(inputs));
+  return useWorkoutMutation(({ inputs, weekStart }: { inputs: WorkoutInput[]; weekStart: string }) =>
+    replaceAllWorkouts(inputs, weekStart),
+  );
 }
 
 /** Optimistic: the card jumps to its new day straight away (drag-and-drop), rolled back on error. */
 export function useMoveWorkout() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, dayOfWeek }: { id: number; dayOfWeek: number }) => moveWorkout(id, dayOfWeek),
+    mutationFn: ({ id, dayOfWeek, weekStart }: { id: number; dayOfWeek: number; weekStart: string }) =>
+      moveWorkout(id, dayOfWeek, weekStart),
     onMutate: async ({ id, dayOfWeek }) => {
       await queryClient.cancelQueries({ queryKey: WORKOUTS_KEY });
       const previous = queryClient.getQueryData<Workout[]>(WORKOUTS_KEY);
@@ -78,7 +86,12 @@ export function useMoveWorkout() {
     onError: (_error, _variables, context) => {
       if (context?.previous) queryClient.setQueryData(WORKOUTS_KEY, context.previous);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: WORKOUTS_KEY }),
+    // A move can split the workout into a new version, which takes this week's ticks with it.
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: WORKOUTS_KEY }),
+        queryClient.invalidateQueries({ queryKey: WORKOUT_LOGS_KEY }),
+      ]),
   });
 }
 

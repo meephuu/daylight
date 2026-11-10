@@ -16,11 +16,11 @@ interface CountdownPanelProps {
   projectsById: Map<number, Project>;
 }
 
-/** Colour of the big number: neutral while there is time, amber in the last days, red when late. */
+/** Colour of the big number: normal text while there is time (including the last days), red only when late. */
 const TONE_COLOR: Record<CountdownTone, string> = {
   later: "var(--foreground)",
-  soon: "var(--viz-warning)",
-  today: "var(--viz-warning)",
+  soon: "var(--foreground)",
+  today: "var(--foreground)",
   overdue: "var(--viz-critical)",
 };
 
@@ -48,7 +48,7 @@ function CountdownTile({ task, project, today }: { task: Task; project: Project 
         <div
           className="flex w-28 shrink-0 flex-col items-center justify-center rounded-xl px-2 py-3 text-center"
           style={{ backgroundColor: `color-mix(in srgb, ${accent} 16%, transparent)` }}
-          aria-label={done ? "Completed" : `${Math.abs(days)} ${countdownLabel(days)}`}
+          aria-label={done ? "Completed" : days === 0 ? "Due today, 0 day left" : `${Math.abs(days)} ${countdownLabel(days)}`}
         >
           {done ? (
             <>
@@ -57,10 +57,22 @@ function CountdownTile({ task, project, today }: { task: Task; project: Project 
             </>
           ) : (
             <>
-              <span className="text-5xl leading-none font-semibold tabular-nums" style={{ color: TONE_COLOR[tone] }}>
-                {Math.abs(days)}
+              {/* TODAY has no label under it, so it gets the height of number + label and sits in the vertical
+                  middle; every tile's coloured block is then exactly the same size. */}
+              <span className={cn("flex items-center", days === 0 ? "h-[4.375rem]" : "h-12")}>
+                {days === 0 ? (
+                  <span className="text-3xl leading-none font-semibold" style={{ color: TONE_COLOR[tone] }}>
+                    TODAY
+                  </span>
+                ) : (
+                  <span className="text-5xl leading-none font-semibold tabular-nums" style={{ color: TONE_COLOR[tone] }}>
+                    {Math.abs(days)}
+                  </span>
+                )}
               </span>
-              <span className="mt-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">{countdownLabel(days)}</span>
+              {days !== 0 && (
+                <span className="mt-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">{countdownLabel(days)}</span>
+              )}
             </>
           )}
         </div>

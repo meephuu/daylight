@@ -1,14 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bringNoteToFront,
+  createImageNote,
   createNote,
   deleteNote,
+  getNoteImage,
   listNotes,
   moveNote,
+  replaceNoteImage,
   resizeNote,
   setNoteColor,
   setNotePinned,
   updateNoteText,
+  type NewImageNote,
   type NewNote,
   type Note,
 } from "@/lib/db/notes";
@@ -54,6 +58,49 @@ export function useCreateNote() {
   return useMutation({
     mutationFn: (input: NewNote) => createNote(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTES_KEY }),
+  });
+}
+
+export function useCreateImageNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: NewImageNote) => createImageNote(input),
+    onSuccess: (id, input) => {
+      // The picture is already in hand, so the new note can show it without reading it back.
+      queryClient.setQueryData(noteImageKey(id), input.data);
+      return queryClient.invalidateQueries({ queryKey: NOTES_KEY });
+    },
+  });
+}
+
+export const noteImageKey = (id: number) => ["note-image", id] as const;
+
+/** A picture note's image. It never changes except through a crop, so it is kept for good once read. */
+export function useNoteImage(id: number, enabled = true) {
+  return useQuery({ queryKey: noteImageKey(id), queryFn: () => getNoteImage(id), staleTime: Infinity, enabled });
+}
+
+/** A crop: new picture and new note size, shown at once and rolled back if saving fails. */
+export function useReplaceNoteImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data, width, height }: { id: number; data: string; width: number; height: number }) =>
+      replaceNoteImage(id, data, width, height),
+    onMutate: async ({ id, data, width, height }) => {
+      await queryClient.cancelQueries({ queryKey: NOTES_KEY });
+      const previousNotes = queryClient.getQueryData<Note[]>(NOTES_KEY);
+      const previousImage = queryClient.getQueryData<string | null>(noteImageKey(id));
+      queryClient.setQueryData(noteImageKey(id), data);
+      queryClient.setQueryData<Note[]>(NOTES_KEY, (notes) =>
+        notes?.map((note) => (note.id === id ? { ...note, width, height } : note)),
+      );
+      return { previousNotes, previousImage };
+    },
+    onError: (_error, { id }, context) => {
+      if (context?.previousNotes) queryClient.setQueryData(NOTES_KEY, context.previousNotes);
+      if (context?.previousImage !== undefined) queryClient.setQueryData(noteImageKey(id), context.previousImage);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: NOTES_KEY }),
   });
 }
 

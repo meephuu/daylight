@@ -6,7 +6,7 @@ import type { Category } from "@/lib/db/categories";
 import type { Expense } from "@/lib/db/expenses";
 import type { Workout } from "@/lib/db/workouts";
 import { formatCompactBaht, formatTHB } from "@/lib/money";
-import { workoutDate, logKeys, logKey } from "@/lib/training";
+import { workoutDate, workoutsForWeek, logKeys, logKey } from "@/lib/training";
 import type { WorkoutLog } from "@/lib/db/workouts";
 import type { WeekReport } from "@/lib/weekReport";
 import { cn } from "@/lib/utils";
@@ -117,7 +117,7 @@ export function WeekStrip({ report, today, workouts, workoutLogs, expenses, cate
             date={selected}
             report={report}
             index={selectedIndex}
-            workouts={workouts.filter((workout) => workoutDate(report.range.start, workout.dayOfWeek) === selected)}
+            workouts={workoutsForWeek(workouts, report.range.start).filter((workout) => workoutDate(report.range.start, workout.dayOfWeek) === selected)}
             doneKeys={doneKeys}
             expenses={expenses.filter((expense) => expense.date === selected)}
             today={today}

@@ -1,4 +1,5 @@
 import type { Note } from "@/lib/db/notes";
+import { plainText } from "@/lib/noteRows";
 
 export const NOTE_COLORS = [
   { name: "Yellow", value: "#fde68a" },
@@ -17,6 +18,7 @@ export const DEFAULT_NOTE_WIDTH = 280;
 export const DEFAULT_NOTE_HEIGHT = 260;
 export const MIN_NOTE_WIDTH = 160;
 export const MIN_NOTE_HEIGHT = 120;
+export const MIN_IMAGE_NOTE_WIDTH = 120;
 
 /** Pinned notes always sit above unpinned ones; a note being dragged sits above everything. */
 export const PINNED_Z_BASE = 1_000_000;
@@ -41,5 +43,6 @@ export function readableTextColor(hex: string): string {
 export function noteMatches(note: Note, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
-  return note.title.toLowerCase().includes(needle) || note.content.toLowerCase().includes(needle);
+  if (note.kind === "image") return false;
+  return note.title.toLowerCase().includes(needle) || plainText(note.content).toLowerCase().includes(needle);
 }

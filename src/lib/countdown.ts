@@ -35,7 +35,7 @@ export function countdownTone(days: number): CountdownTone {
 
 export function countdownLabel(days: number): string {
   if (days < 0) return Math.abs(days) === 1 ? "day overdue" : "days overdue";
-  if (days === 0) return "due today";
+  if (days === 0) return "0 day left";
   return days === 1 ? "day left" : "days left";
 }
 

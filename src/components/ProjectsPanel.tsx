@@ -3,6 +3,7 @@ import { Archive, ArchiveRestore, Pencil, Plus, Trash2 } from "lucide-react";
 import { ProjectFormDialog } from "@/components/ProjectFormDialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useDeleteProject, useSetProjectArchived } from "@/hooks/useProjects";
 import type { Project } from "@/lib/db/projects";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ export function ProjectsPanel({ projects, selectedId, onSelect }: ProjectsPanelP
   const [editing, setEditing] = useState<Project | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const deleteProject = useDeleteProject();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const setArchived = useSetProjectArchived();
 
   const visible = projects.filter((project) => showArchived || !project.archived);
@@ -28,10 +30,13 @@ export function ProjectsPanel({ projects, selectedId, onSelect }: ProjectsPanelP
     setFormOpen(true);
   }
 
-  function handleDelete(project: Project) {
-    if (!window.confirm(`Delete project "${project.name}"? Its tasks are kept, without a project.`)) {
-      return;
-    }
+  async function handleDelete(project: Project) {
+    const confirmed = await confirm({
+      title: "Delete project?",
+      description: `“${project.name}” will be deleted. Its tasks are kept, just without a project.`,
+      confirmLabel: "Delete project",
+    });
+    if (!confirmed) return;
     if (selectedId === project.id) onSelect(null);
     deleteProject.mutate(project.id);
   }
@@ -123,6 +128,7 @@ export function ProjectsPanel({ projects, selectedId, onSelect }: ProjectsPanelP
       )}
 
       <ProjectFormDialog open={formOpen} onOpenChange={setFormOpen} project={editing} />
+      {confirmDialog}
     </section>
   );
 }

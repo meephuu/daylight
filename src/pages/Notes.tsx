@@ -1,12 +1,14 @@
-import { useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { Plus, Search } from "lucide-react";
+import { ImagePlus, Plus, Search } from "lucide-react";
 import { ColorSwatches } from "@/components/ColorSwatches";
 import { PostIt } from "@/components/notes/PostIt";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateNote, useMoveNote, useNotes } from "@/hooks/useNotes";
+import { useCreateImageNote, useCreateNote, useMoveNote, useNotes } from "@/hooks/useNotes";
+import { noteSizeForImage, pictureFromClipboard, prepareImage } from "@/lib/noteImages";
 import { DEFAULT_NOTE_COLOR, DEFAULT_NOTE_WIDTH, NOTE_COLORS, noteMatches } from "@/lib/notes";
+import { showToast } from "@/lib/toast";
 
 const COLOR_STORAGE_KEY = "newNoteColor";
 const MIN_BOARD_WIDTH = 1600;
@@ -25,6 +27,7 @@ function readStoredColor(): string {
 export default function NotesPage() {
   const notesQuery = useNotes();
   const createNote = useCreateNote();
+  const createImageNote = useCreateImageNote();
   const moveNote = useMoveNote();
 
   const [newColor, setNewColor] = useState(readStoredColor);
@@ -37,6 +40,11 @@ export default function NotesPage() {
     scrollTop: number;
   } | null>(null);
   const [panning, setPanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  // Where a note was just dropped. The saved position reaches the screen a moment after the drag ends,
+  // and without this the note would flash back to its old spot for one frame in between.
+  const [dropped, setDropped] = useState<Record<number, { x: number; y: number }>>({});
 
   const notes = useMemo(() => notesQuery.data ?? [], [notesQuery.data]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -72,10 +80,58 @@ export default function NotesPage() {
     });
   }
 
+  /** A picture from a file or the clipboard becomes its own note, in the visible top-left corner like a new text note. */
+  async function addPicture(blob: Blob) {
+    const scroll = scrollRef.current;
+    const offset = (notes.length % 6) * 28;
+    try {
+      const picture = await prepareImage(blob);
+      createImageNote.mutate({
+        x: Math.round((scroll?.scrollLeft ?? 0) + 32 + offset),
+        y: Math.round((scroll?.scrollTop ?? 0) + 32 + offset),
+        data: picture.data,
+        ...noteSizeForImage(picture.width, picture.height),
+      });
+    } catch (error) {
+      showToast({ message: error instanceof Error ? error.message : "Could not add the picture" });
+    }
+  }
+
+  function handleFilesChosen(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
+    event.target.value = "";
+    if (files.length === 0) {
+      showToast({ message: "Choose a picture file (PNG, JPG, WebP, GIF...)" });
+      return;
+    }
+    for (const file of files) void addPicture(file);
+  }
+
+  // Pasting (Ctrl+V) a copied picture anywhere on this page adds it. Text pastes into a note are left alone.
+  const addPictureRef = useRef(addPicture);
+  addPictureRef.current = addPicture;
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      const picture = pictureFromClipboard(event.clipboardData);
+      if (!picture) return;
+      const target = event.target as HTMLElement | null;
+      const typing = target?.matches("input, textarea, [contenteditable='true']") ?? false;
+      if (typing && event.clipboardData?.getData("text/plain")) return;
+      event.preventDefault();
+      void addPictureRef.current(picture);
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
+
   function handleBoardDoubleClick(event: MouseEvent<HTMLDivElement>) {
-    // Only empty board space: double-clicking a note's text must not create another note.
-    if (event.target !== event.currentTarget) return;
-    const rect = event.currentTarget.getBoundingClientRect();
+    // Pressing on the board captures the pointer for panning, which makes the browser deliver the click to the
+    // scrolling container instead of whatever is under the pointer. So look at what is really there: only empty
+    // board space counts, double-clicking a note's text must not create another note.
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const board = boardRef.current;
+    if (!board || !(hit instanceof HTMLElement) || !hit.dataset.boardSurface) return;
+    const rect = board.getBoundingClientRect();
     createNote.mutate({
       x: Math.max(0, Math.round(event.clientX - rect.left - DEFAULT_NOTE_WIDTH / 2)),
       y: Math.max(0, Math.round(event.clientY - rect.top - 16)),
@@ -118,11 +174,21 @@ export default function NotesPage() {
   function handleDragEnd(event: DragEndEvent) {
     const note = notes.find((candidate) => candidate.id === event.active.id);
     if (!note || (event.delta.x === 0 && event.delta.y === 0)) return;
-    moveNote.mutate({
-      id: note.id,
+    const position = {
       x: Math.max(0, Math.round(note.x + event.delta.x)),
       y: Math.max(0, Math.round(note.y + event.delta.y)),
-    });
+    };
+    setDropped((current) => ({ ...current, [note.id]: position }));
+    moveNote.mutate(
+      { id: note.id, ...position },
+      {
+        onSettled: () =>
+          setDropped((current) => {
+            const { [note.id]: _settled, ...rest } = current;
+            return rest;
+          }),
+      },
+    );
   }
 
   return (
@@ -134,6 +200,11 @@ export default function NotesPage() {
             <Plus className="size-4" />
             New note
           </Button>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={createImageNote.isPending}>
+            <ImagePlus className="size-4" />
+            Add picture
+          </Button>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFilesChosen} />
           <ColorSwatches value={newColor} colors={NOTE_COLORS} onChange={chooseColor} allowCustom />
         </div>
         <div className="relative ml-auto w-64">
@@ -154,19 +225,20 @@ export default function NotesPage() {
       <div
         ref={scrollRef}
         data-board-surface
+        onDoubleClick={handleBoardDoubleClick}
         onPointerDown={handlePanStart}
         onPointerMove={handlePanMove}
         onPointerUp={handlePanEnd}
         onPointerCancel={handlePanEnd}
-        className={`min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/30 ${
+        className={`no-scrollbar isolate min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/30 ${
           panning ? "cursor-grabbing" : "cursor-grab"
         }`}
       >
         <DndContext sensors={sensors} autoScroll={false} onDragEnd={handleDragEnd}>
           <div
+            ref={boardRef}
             data-board-surface
             className="relative"
-            onDoubleClick={handleBoardDoubleClick}
             style={{
               width: boardSize.width,
               height: boardSize.height,
@@ -177,14 +249,14 @@ export default function NotesPage() {
             {notes.map((note) => (
               <PostIt
                 key={note.id}
-                note={note}
+                note={dropped[note.id] ? { ...note, ...dropped[note.id] } : note}
                 needsRaise={note.zIndex < topZ}
                 dimmed={searching && !noteMatches(note, query)}
               />
             ))}
             {notes.length === 0 && !notesQuery.isPending && (
               <p className="pointer-events-none absolute top-10 left-10 text-sm text-muted-foreground">
-                Your board is empty. Click “New note”, or double-click anywhere on the board.
+                Your board is empty. Click “New note”, double-click anywhere on the board, or paste a picture with Ctrl+V.
               </p>
             )}
           </div>
@@ -194,7 +266,7 @@ export default function NotesPage() {
       <p className="text-xs text-muted-foreground">
         {searching
           ? `${matchCount} of ${notes.length} notes match. Others are faded.`
-          : "Drag empty space to pan around the board. Drag a note by its top bar to move it, the bottom-right corner to resize, and use the pin to keep a note on top."}
+          : "Drag empty space to pan around the board. Drag a note by its top bar to move it, the bottom-right corner to resize, and use the pin to keep a note on top. Paste a picture with Ctrl+V or use “Add picture”."}
       </p>
     </div>
   );

@@ -1,3 +1,4 @@
+import { addWeeks, format, parseISO } from "date-fns";
 import { z } from "zod";
 import { getDb } from "./client";
 
@@ -25,6 +26,10 @@ export interface Workout {
   category: WorkoutCategory;
   notes: string;
   createdAt: string;
+  /** First week (the Sunday, "YYYY-MM-DD") this workout is part of the plan; null = from the beginning. */
+  validFrom: string | null;
+  /** Last week it is part of the plan; null = it keeps repeating every week. */
+  validUntil: string | null;
   exercises: Exercise[];
 }
 
@@ -62,6 +67,8 @@ const workoutRowSchema = z.object({
   category: z.enum(WORKOUT_CATEGORIES),
   notes: z.string(),
   created_at: z.string(),
+  valid_from: z.string().nullable(),
+  valid_until: z.string().nullable(),
 });
 
 const exerciseRowSchema = z.object({
@@ -83,9 +90,9 @@ const logRowSchema = z.object({
 export async function listWorkouts(): Promise<Workout[]> {
   const db = await getDb();
   const workoutRows = await db.select<unknown>(
-    `SELECT id, title, day_of_week, start_time, duration_minutes, category, notes, created_at
+    `SELECT id, title, day_of_week, start_time, duration_minutes, category, notes, created_at, valid_from, valid_until
      FROM workouts
-     ORDER BY day_of_week, COALESCE(start_time, '99:99'), id`,
+     ORDER BY day_of_week, COALESCE(start_time, '99:99'), created_at, id`,
   );
   const exerciseRows = await db.select<unknown>(
     "SELECT id, workout_id, name, sets, reps, weight FROM workout_exercises ORDER BY workout_id, position, id",
@@ -107,6 +114,8 @@ export async function listWorkouts(): Promise<Workout[]> {
     category: row.category,
     notes: row.notes,
     createdAt: row.created_at,
+    validFrom: row.valid_from,
+    validUntil: row.valid_until,
     exercises: exercisesByWorkout.get(row.id) ?? [],
   }));
 }
@@ -123,12 +132,36 @@ async function replaceExercises(workoutId: number, exercises: ExerciseInput[]): 
   }
 }
 
-export async function createWorkout(input: WorkoutInput): Promise<number> {
+/** The Sunday before the given Sunday. */
+function weekBefore(weekStart: string): string {
+  return format(addWeeks(parseISO(weekStart), -1), "yyyy-MM-dd");
+}
+
+const versionRowSchema = z.array(
+  z.object({ valid_from: z.string().nullable(), valid_until: z.string().nullable(), created_at: z.string() }),
+);
+
+/**
+ * A workout is part of the plan for a range of weeks (see migration 012). Every change below is made "from
+ * `weekStart` onward": a workout that started before that week is closed at the week before it, so earlier
+ * weeks keep the plan (and the ticks) they had, and the change continues as a new version from `weekStart`.
+ */
+async function versionOf(id: number): Promise<{ validFrom: string | null; validUntil: string | null; createdAt: string }> {
+  const db = await getDb();
+  const row = versionRowSchema.parse(
+    await db.select<unknown>("SELECT valid_from, valid_until, created_at FROM workouts WHERE id = $1", [id]),
+  )[0];
+  if (!row) throw new Error("That workout no longer exists");
+  return { validFrom: row.valid_from, validUntil: row.valid_until, createdAt: row.created_at };
+}
+
+/** Adds a workout that is part of the plan from `weekStart` onward. */
+export async function createWorkout(input: WorkoutInput, weekStart: string): Promise<number> {
   const db = await getDb();
   const result = await db.execute(
-    `INSERT INTO workouts (title, day_of_week, start_time, duration_minutes, category, notes)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [input.title, input.dayOfWeek, input.startTime, input.durationMinutes, input.category, input.notes],
+    `INSERT INTO workouts (title, day_of_week, start_time, duration_minutes, category, notes, valid_from)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [input.title, input.dayOfWeek, input.startTime, input.durationMinutes, input.category, input.notes, weekStart],
   );
   const id = result.lastInsertId;
   if (id === undefined) throw new Error("Workout insert did not return an id");
@@ -136,33 +169,96 @@ export async function createWorkout(input: WorkoutInput): Promise<number> {
   return id;
 }
 
-/** Replaces the whole weekly plan: every workout (with its exercises and history) is removed first. */
-export async function replaceAllWorkouts(inputs: WorkoutInput[]): Promise<void> {
+/** Ends a workout's part in the plan at `weekStart`: gone from that week on, kept (with its ticks) before it. */
+async function retireFrom(id: number, weekStart: string): Promise<void> {
   const db = await getDb();
-  await db.execute("DELETE FROM workouts");
-  for (const input of inputs) await createWorkout(input);
+  const { validFrom } = await versionOf(id);
+  if (validFrom !== null && validFrom >= weekStart) {
+    // It only ever existed from this week on, so there is no earlier history to keep.
+    await db.execute("DELETE FROM workouts WHERE id = $1", [id]);
+    return;
+  }
+  await db.execute("DELETE FROM workout_logs WHERE workout_id = $1 AND week_start >= $2", [id, weekStart]);
+  await db.execute("UPDATE workouts SET valid_until = $1 WHERE id = $2", [weekBefore(weekStart), id]);
 }
 
-export async function updateWorkout(id: number, input: WorkoutInput): Promise<void> {
+/**
+ * Replaces the weekly plan from `weekStart` onward with the given workouts. Earlier weeks keep their
+ * workouts and completion history.
+ */
+export async function replaceAllWorkouts(inputs: WorkoutInput[], weekStart: string): Promise<void> {
   const db = await getDb();
-  await db.execute(
-    `UPDATE workouts
-        SET title = $1, day_of_week = $2, start_time = $3, duration_minutes = $4, category = $5, notes = $6
-      WHERE id = $7`,
-    [input.title, input.dayOfWeek, input.startTime, input.durationMinutes, input.category, input.notes, id],
+  const rows = z
+    .array(z.object({ id: z.number() }))
+    .parse(await db.select<unknown>("SELECT id FROM workouts WHERE valid_until IS NULL OR valid_until >= $1", [weekStart]));
+  for (const row of rows) await retireFrom(row.id, weekStart);
+  for (const input of inputs) await createWorkout(input, weekStart);
+}
+
+/** Changes a workout from `weekStart` onward (see versionOf); earlier weeks keep the old version. */
+export async function updateWorkout(id: number, input: WorkoutInput, weekStart: string): Promise<void> {
+  const db = await getDb();
+  const { validFrom, validUntil, createdAt } = await versionOf(id);
+  if (validFrom !== null && validFrom >= weekStart) {
+    // It starts in this very week, so nothing earlier can be affected: edit it in place.
+    await db.execute(
+      `UPDATE workouts
+          SET title = $1, day_of_week = $2, start_time = $3, duration_minutes = $4, category = $5, notes = $6
+        WHERE id = $7`,
+      [input.title, input.dayOfWeek, input.startTime, input.durationMinutes, input.category, input.notes, id],
+    );
+    await replaceExercises(id, input.exercises);
+    return;
+  }
+  // New version first, so a failure part-way never leaves the plan without this workout. It keeps the original
+  // creation time, which is what orders workouts that share a day and time, so it stays in the same spot.
+  const result = await db.execute(
+    `INSERT INTO workouts (title, day_of_week, start_time, duration_minutes, category, notes, valid_from, valid_until, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [input.title, input.dayOfWeek, input.startTime, input.durationMinutes, input.category, input.notes, weekStart, validUntil, createdAt],
   );
-  await replaceExercises(id, input.exercises);
+  const newId = result.lastInsertId;
+  if (newId === undefined) throw new Error("Workout insert did not return an id");
+  await replaceExercises(newId, input.exercises);
+  // Ticks from this week on follow the workout into its new version; earlier ones stay with the old one.
+  await db.execute("UPDATE workout_logs SET workout_id = $1 WHERE workout_id = $2 AND week_start >= $3", [newId, id, weekStart]);
+  await db.execute("UPDATE workouts SET valid_until = $1 WHERE id = $2", [weekBefore(weekStart), id]);
 }
 
-export async function moveWorkout(id: number, dayOfWeek: number): Promise<void> {
+/** Drag-and-drop to another day: a change from `weekStart` onward like any other. */
+export async function moveWorkout(id: number, dayOfWeek: number, weekStart: string): Promise<void> {
   const db = await getDb();
-  await db.execute("UPDATE workouts SET day_of_week = $1 WHERE id = $2", [dayOfWeek, id]);
+  const rows = z
+    .array(workoutRowSchema.omit({ id: true, created_at: true, valid_from: true, valid_until: true }))
+    .parse(
+      await db.select<unknown>(
+        "SELECT title, day_of_week, start_time, duration_minutes, category, notes FROM workouts WHERE id = $1",
+        [id],
+      ),
+    );
+  const row = rows[0];
+  if (!row) throw new Error("That workout no longer exists");
+  const exercises = z
+    .array(exerciseRowSchema.omit({ id: true, workout_id: true }))
+    .parse(await db.select<unknown>("SELECT name, sets, reps, weight FROM workout_exercises WHERE workout_id = $1 ORDER BY position, id", [id]));
+  await updateWorkout(
+    id,
+    {
+      title: row.title,
+      dayOfWeek,
+      startTime: row.start_time,
+      durationMinutes: row.duration_minutes,
+      category: row.category,
+      notes: row.notes,
+      exercises: exercises.map((exercise) => ({ name: exercise.name, sets: exercise.sets, reps: exercise.reps ?? "", weight: exercise.weight })),
+    },
+    weekStart,
+  );
 }
 
-/** Exercises and completion history are removed too (ON DELETE CASCADE). */
-export async function deleteWorkout(id: number): Promise<void> {
-  const db = await getDb();
-  await db.execute("DELETE FROM workouts WHERE id = $1", [id]);
+/** Removes a workout from `weekStart` onward; weeks before it keep it and its completion history. */
+export async function deleteWorkout(id: number, weekStart: string): Promise<void> {
+  await retireFrom(id, weekStart);
 }
 
 export async function listWorkoutLogs(): Promise<WorkoutLog[]> {

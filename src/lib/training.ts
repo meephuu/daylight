@@ -35,6 +35,29 @@ export function workoutDate(weekStart: string, dayOfWeek: number): string {
   return toDateString(addDays(parseISO(weekStart), dayOfWeek));
 }
 
+/** The order workouts are listed in: by day, then start time (untimed last), then when they were first added. */
+export function compareWorkouts(a: Workout, b: Workout): number {
+  return (
+    a.dayOfWeek - b.dayOfWeek ||
+    (a.startTime ?? "99:99").localeCompare(b.startTime ?? "99:99") ||
+    (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0) ||
+    a.id - b.id
+  );
+}
+
+/** Whether the workout is part of the plan in the week starting `weekStart` (see migration 012). */
+export function appliesToWeek(workout: Pick<Workout, "validFrom" | "validUntil">, weekStart: string): boolean {
+  return (
+    (workout.validFrom === null || workout.validFrom <= weekStart) &&
+    (workout.validUntil === null || weekStart <= workout.validUntil)
+  );
+}
+
+/** The workouts planned for one week; the plan keeps older versions around so past weeks stay as they were. */
+export function workoutsForWeek<T extends Pick<Workout, "validFrom" | "validUntil">>(workouts: T[], weekStart: string): T[] {
+  return workouts.filter((workout) => appliesToWeek(workout, weekStart));
+}
+
 export type WorkoutStatus = "done" | "missed" | "today" | "upcoming";
 
 export function logKey(workoutId: number, weekStart: string): string {
@@ -70,11 +93,12 @@ export interface WeekSummary {
 }
 
 export function summarizeWeek(
-  workouts: Workout[],
+  allWorkouts: Workout[],
   logs: WorkoutLog[],
   weekStart: string,
   today: string,
 ): WeekSummary {
+  const workouts = workoutsForWeek(allWorkouts, weekStart);
   const done = logKeys(logs);
   const summary: WeekSummary = {
     planned: workouts.length,
@@ -109,9 +133,8 @@ export interface WeekHistory {
 }
 
 /**
- * Completed vs planned for the last `count` weeks, oldest first. A workout only counts as planned
- * for weeks that end on or after the day it was created, so a new plan does not make earlier
- * weeks look like failures.
+ * Completed vs planned for the last `count` weeks, oldest first. Each week counts the workouts that were
+ * part of the plan in that week, so a later change to the plan never rewrites an earlier week.
  */
 export function recentWeeks(
   workouts: Workout[],
@@ -123,9 +146,8 @@ export function recentWeeks(
   for (let offset = count - 1; offset >= 0; offset -= 1) {
     const start = addWeeks(parseISO(currentWeekStart), -offset);
     const weekStart = toDateString(start);
-    const weekEnd = toDateString(addDays(start, 6));
     const done = logs.filter((log) => log.weekStart === weekStart).length;
-    const planned = workouts.filter((workout) => toDateString(parseISO(workout.createdAt)) <= weekEnd).length;
+    const planned = workoutsForWeek(workouts, weekStart).length;
     result.push({ weekStart, planned: Math.max(planned, done), done });
   }
   return result;

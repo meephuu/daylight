@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Archive, ArchiveRestore, Flame, Pencil, Trash2 } from "lucide-react";
 import { HabitCheck } from "@/components/habits/HabitCheck";
 import { HabitHeatmap } from "@/components/habits/HabitHeatmap";
@@ -14,9 +15,11 @@ interface HabitCardProps {
   onEdit: (habit: Habit) => void;
   onToggleArchived: (habit: Habit) => void;
   onDelete: (habit: Habit) => void;
+  /** Shown first in the card header; the Habits page puts the drag handle here. */
+  leading?: ReactNode;
 }
 
-export function HabitCard({ habit, logs, onEdit, onToggleArchived, onDelete }: HabitCardProps) {
+export function HabitCard({ habit, logs, onEdit, onToggleArchived, onDelete, leading }: HabitCardProps) {
   const today = todayString();
   const streak = computeStreak(habit, logs, today);
   const countsByDate = logCountsByDate(logs);
@@ -26,6 +29,7 @@ export function HabitCard({ habit, logs, onEdit, onToggleArchived, onDelete }: H
     <Card className={cn(habit.archived && "opacity-60")}>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
+          {leading}
           <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: habit.color }} />
           <div className="min-w-0 flex-1">
             <h2 className="truncate font-medium">{habit.name}</h2>

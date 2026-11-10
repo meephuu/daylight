@@ -30,11 +30,13 @@ import type { Workout } from "@/lib/db/workouts";
 import { formatMinutes } from "@/lib/dates";
 import { weekRange } from "@/lib/review";
 import {
+  compareWorkouts,
   dayDropId,
   logKeys,
   recentWeeks,
   summarizeWeek,
   workoutDate,
+  workoutsForWeek,
   workoutStatus,
   WORKOUT_TEMPLATES,
 } from "@/lib/training";
@@ -55,6 +57,9 @@ export default function TrainingPage() {
   const [editing, setEditing] = useState<Workout | null>(null);
   const [newDay, setNewDay] = useState(0);
   const [dragging, setDragging] = useState<Workout | null>(null);
+  // The day a card was just dropped on. The saved move reaches the screen a moment after the drop, and until
+  // then the card (and the drop animation heading for it) would still be in its old column.
+  const [movedTo, setMovedTo] = useState<Record<number, number>>({});
 
   const workoutsQuery = useWorkouts();
   const logsQuery = useWorkoutLogs();
@@ -70,6 +75,14 @@ export default function TrainingPage() {
   const week = useMemo(() => weekRange(cursor), [cursor]);
   const isThisWeek = week.days.includes(today);
 
+  // The plan keeps older versions of every workout; only the ones in force during the viewed week are shown.
+  const weekWorkouts = useMemo(
+    () =>
+      workoutsForWeek(workouts, week.start)
+        .map((workout) => (movedTo[workout.id] === undefined ? workout : { ...workout, dayOfWeek: movedTo[workout.id] as number }))
+        .sort(compareWorkouts),
+    [workouts, week.start, movedTo],
+  );
   const summary = useMemo(() => summarizeWeek(workouts, logs, week.start, today), [workouts, logs, week.start, today]);
   const history = useMemo(
     () => recentWeeks(workouts, logs, weekRange(new Date()).start, HISTORY_WEEKS),
@@ -108,7 +121,17 @@ export default function TrainingPage() {
     if (!workout || !event.over) return;
     const target = Number(String(event.over.id).replace("day-", ""));
     if (Number.isInteger(target) && target !== workout.dayOfWeek) {
-      moveWorkout.mutate({ id: workout.id, dayOfWeek: target });
+      setMovedTo((current) => ({ ...current, [workout.id]: target }));
+      moveWorkout.mutate(
+        { id: workout.id, dayOfWeek: target, weekStart: week.start },
+        {
+          onSettled: () =>
+            setMovedTo((current) => {
+              const { [workout.id]: _settled, ...rest } = current;
+              return rest;
+            }),
+        },
+      );
     }
   }
 
@@ -166,7 +189,7 @@ export default function TrainingPage() {
                   key={template.id}
                   template={template}
                   disabled={createWorkouts.isPending}
-                  onSelect={(chosen) => createWorkouts.mutate(chosen.workouts)}
+                  onSelect={(chosen) => createWorkouts.mutate({ inputs: chosen.workouts, weekStart: week.start })}
                 />
               ))}
             </div>
@@ -217,7 +240,7 @@ export default function TrainingPage() {
                 key={dayDropId(dayOfWeek)}
                 dayOfWeek={dayOfWeek}
                 date={date}
-                workouts={workouts.filter((workout) => workout.dayOfWeek === dayOfWeek)}
+                workouts={weekWorkouts.filter((workout) => workout.dayOfWeek === dayOfWeek)}
                 statusOf={statusOf}
                 onToggle={handleToggle}
                 onEdit={openEdit}
@@ -240,7 +263,8 @@ export default function TrainingPage() {
 
       <p className="text-xs text-muted-foreground">
         This is your repeating weekly plan: drag a workout to another day to move it, click it to edit its exercises,
-        and tick it off each week. Changes to the plan apply to every week; completions are kept per week.
+        and tick it off each week. A change applies from the week you are viewing onward; earlier weeks keep the
+        plan they had.
       </p>
 
       {!empty && (
@@ -269,8 +293,8 @@ export default function TrainingPage() {
         </Card>
       )}
 
-      <PlansDialog open={plansOpen} onOpenChange={setPlansOpen} />
-      <WorkoutFormDialog open={formOpen} onOpenChange={setFormOpen} workout={editing} defaultDay={newDay} />
+      <PlansDialog open={plansOpen} onOpenChange={setPlansOpen} weekStart={week.start} />
+      <WorkoutFormDialog open={formOpen} onOpenChange={setFormOpen} workout={editing} defaultDay={newDay} weekStart={week.start} />
     </div>
   );
 }

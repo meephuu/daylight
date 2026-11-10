@@ -41,11 +41,13 @@ export function TimeOfDayDebugPanel() {
   }
 
   return (
-    <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+    // The wrapper itself must not catch clicks: it is as big as the (hidden) panel and would otherwise block the
+    // bottom-right of whatever page is underneath. Only the clock button and the open panel take clicks.
+    <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
       <div
         className={cn(
           "w-80 rounded-xl border bg-popover p-4 text-popover-foreground shadow-xl transition-all duration-300",
-          open ? "translate-y-0 opacity-100" : "invisible translate-y-4 opacity-0",
+          open ? "pointer-events-auto translate-y-0 opacity-100" : "invisible translate-y-4 opacity-0",
         )}
       >
         <div className="flex items-center justify-between">
@@ -106,7 +108,7 @@ export function TimeOfDayDebugPanel() {
         </div>
       </div>
 
-      <Button variant="outline" size="sm" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+      <Button className="pointer-events-auto" variant="outline" size="sm" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
         <Clock className="size-4" />
         <span className="tabular-nums">{formatMinutes(minutes)}</span>
         {override !== null && <span className="text-xs text-muted-foreground">test</span>}
