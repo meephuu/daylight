@@ -193,8 +193,8 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
   const textColor = readableTextColor(note.color);
   // A picture note has no bar: the whole picture is the handle for dragging, and its buttons float over it.
   const iconButton = isImage
-    ? "rounded-full p-1.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] hover:bg-black/40 disabled:opacity-40"
-    : "rounded-full p-1.5 hover:bg-black/10 disabled:opacity-40";
+    ? "rounded p-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] hover:bg-black/40 disabled:opacity-40"
+    : "rounded p-1 hover:bg-black/10 disabled:opacity-40";
   const iconSize = "size-3.5";
 
   return (
@@ -202,9 +202,9 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
       ref={setNodeRef}
       onPointerDownCapture={raise}
       className={cn(
-        "group/note absolute flex flex-col rounded-[18px] shadow-[0_12px_28px_-14px_rgb(0_0_0/0.55),inset_0_1px_0_rgb(255_255_255/0.45)] transition-[opacity,box-shadow]",
+        "absolute flex flex-col rounded-sm shadow-md transition-opacity",
         isImage && "cursor-grab touch-none overflow-hidden bg-card active:cursor-grabbing",
-        isDragging && "shadow-[0_24px_48px_-16px_rgb(0_0_0/0.6)]",
+        isDragging && "shadow-xl",
         dimmed && "opacity-25",
       )}
       style={{
@@ -224,7 +224,7 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
         className={
           isImage
             ? "absolute top-1 right-1 z-10"
-            : "flex h-8 shrink-0 cursor-grab touch-none items-center justify-end gap-0.5 rounded-t-[18px] px-1.5 opacity-55 transition-opacity group-hover/note:opacity-100 focus-within:opacity-100 active:cursor-grabbing"
+            : "flex h-7 shrink-0 cursor-grab touch-none items-center justify-end gap-0.5 rounded-t-sm bg-black/10 px-1 active:cursor-grabbing"
         }
       >
         <div
@@ -340,7 +340,7 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
             onChange={(event) => setTitle(event.target.value)}
             onBlur={() => saveRef.current()}
             placeholder="Title"
-            className="w-full bg-transparent px-4 pt-1 font-display text-[19px] font-semibold tracking-[-0.02em] outline-none placeholder:text-current placeholder:opacity-40"
+            className="w-full bg-transparent px-3 pt-2.5 text-base font-semibold outline-none placeholder:text-current placeholder:opacity-40"
           />
           <NoteBody ref={bodyRef} content={content} onChange={setContent} onBlur={() => saveRef.current()} />
         </>
