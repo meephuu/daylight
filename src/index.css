@@ -1,0 +1,395 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+/* Thai text uses Prompt (bundled, so it works offline). These are the Thai-only files: Geist has no Thai
+   glyphs, so the browser falls back to Prompt for Thai characters and English text stays in Geist. */
+@import "@fontsource/prompt/thai-400.css";
+@import "@fontsource/prompt/thai-500.css";
+@import "@fontsource/prompt/thai-600.css";
+@import "@fontsource/prompt/thai-700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', 'Prompt', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --color-sky-accent: var(--sky-accent);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * The hour's sky colours. SkyBackground writes them on <html> as the clock moves; registering them
+ * as colours lets every change fade instead of jumping (the time tester can move the clock quickly).
+ */
+@property --sky-top { syntax: "<color>"; inherits: true; initial-value: #0a1236; }
+@property --sky-mid { syntax: "<color>"; inherits: true; initial-value: #161b4d; }
+@property --sky-bottom { syntax: "<color>"; inherits: true; initial-value: #231f5c; }
+@property --sky-glow { syntax: "<color>"; inherits: true; initial-value: #5a4bd0; }
+@property --sky-accent { syntax: "<color>"; inherits: true; initial-value: #a08cff; }
+
+/*
+ * Light theme: bright sky, white glass, deep ink.
+ * Glass fills are translucent on purpose: the sky shows through every slab.
+ */
+:root {
+    color-scheme: light;
+    --radius: 0.75rem;
+
+    --background: #e8eefa;
+    --foreground: #0d1430;
+    --card: rgb(255 255 255 / 0.62);
+    --card-foreground: #0d1430;
+    --popover: rgb(250 252 255 / 0.9);
+    --popover-foreground: #0d1430;
+    --primary: #111a44;
+    --primary-foreground: #ffffff;
+    --secondary: rgb(17 26 68 / 0.07);
+    --secondary-foreground: #0d1430;
+    --muted: rgb(17 26 68 / 0.06);
+    --muted-foreground: #475073;
+    --accent: rgb(17 26 68 / 0.08);
+    --accent-foreground: #0d1430;
+    --destructive: #d2334c;
+    --success: #16855a;
+    --warning: #b86e00;
+    --border: rgb(17 26 68 / 0.1);
+    --input: rgb(17 26 68 / 0.16);
+    --ring: #3d74e6;
+
+    /* Glass */
+    --glass-fill: rgb(255 255 255 / 0.58);
+    --glass-fill-strong: rgb(255 255 255 / 0.86);
+    --glass-edge: rgb(255 255 255 / 0.7);
+    --glass-rim: rgb(17 26 68 / 0.08);
+    --glass-shadow: 0 6px 20px -12px rgb(20 30 80 / 0.28);
+    --glass-well: rgb(17 26 68 / 0.05);
+
+    --chart-1: #2a72d9;
+    --chart-2: #e0552f;
+    --chart-3: #14957f;
+    --chart-4: #c08000;
+    --chart-5: #d6528f;
+    --sidebar: var(--glass-fill);
+    --sidebar-foreground: #0d1430;
+    --sidebar-primary: #111a44;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: rgb(17 26 68 / 0.08);
+    --sidebar-accent-foreground: #0d1430;
+    --sidebar-border: rgb(17 26 68 / 0.1);
+    --sidebar-ring: #3d74e6;
+
+    /* Validated categorical series (dataviz validator, light, glass surface #f3f6fc): all checks pass. */
+    --series-1: #2a72d9;
+    --series-2: #e0552f;
+    --series-3: #14957f;
+    --series-4: #c08000;
+    --series-5: #d6528f;
+    --series-6: #3d8f2b;
+    --series-7: #7a5ce0;
+    --series-8: #d6404a;
+}
+
+/* Dark theme (the owner's usual one): deep sky, clear smoked glass, light ink. */
+.dark {
+    color-scheme: dark;
+    --background: #070b22;
+    --foreground: #f1f4ff;
+    --card: rgb(12 16 44 / 0.4);
+    --card-foreground: #f1f4ff;
+    --popover: rgb(16 20 52 / 0.9);
+    --popover-foreground: #f1f4ff;
+    --primary: #f4f6ff;
+    --primary-foreground: #0b1033;
+    --secondary: rgb(255 255 255 / 0.1);
+    --secondary-foreground: #f1f4ff;
+    --muted: rgb(255 255 255 / 0.08);
+    --muted-foreground: #b3bad6;
+    --accent: rgb(255 255 255 / 0.11);
+    --accent-foreground: #f1f4ff;
+    --destructive: #ff6b81;
+    --success: #4fd69a;
+    --warning: #ffc04d;
+    --border: rgb(255 255 255 / 0.12);
+    --input: rgb(255 255 255 / 0.18);
+    --ring: #93b6ff;
+
+    --glass-fill: rgb(12 16 44 / 0.4);
+    --glass-fill-strong: rgb(18 22 56 / 0.9);
+    --glass-edge: rgb(255 255 255 / 0.26);
+    --glass-rim: rgb(255 255 255 / 0.09);
+    --glass-shadow: 0 8px 24px -14px rgb(2 4 18 / 0.55);
+    --glass-well: rgb(5 8 30 / 0.32);
+
+    --chart-1: #3d8ef5;
+    --chart-2: #e35a3c;
+    --chart-3: #17a08a;
+    --chart-4: #c4860c;
+    --chart-5: #e0609e;
+    --sidebar: var(--glass-fill);
+    --sidebar-foreground: #f1f4ff;
+    --sidebar-primary: #f4f6ff;
+    --sidebar-primary-foreground: #0b1033;
+    --sidebar-accent: rgb(255 255 255 / 0.11);
+    --sidebar-accent-foreground: #f1f4ff;
+    --sidebar-border: rgb(255 255 255 / 0.12);
+    --sidebar-ring: #93b6ff;
+
+    /* Validated categorical series (dataviz validator, dark, glass surface #161b3a): all checks pass. */
+    --series-1: #3d8ef5;
+    --series-2: #e35a3c;
+    --series-3: #17a08a;
+    --series-4: #c4860c;
+    --series-5: #e0609e;
+    --series-6: #4fa83a;
+    --series-7: #9a7cf2;
+    --series-8: #e95560;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    background: var(--background);
+  }
+  body {
+    @apply text-foreground;
+    background: transparent;
+    -webkit-font-smoothing: antialiased;
+    caret-color: var(--sky-accent);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--sky-accent) 45%, transparent);
+    color: var(--foreground);
+  }
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+}
+
+/* ------------------------------------------------------------------ the sky */
+
+.sky {
+  background:
+    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 58%, var(--sky-bottom) 100%);
+  transition: --sky-top 1.2s linear, --sky-mid 1.2s linear, --sky-bottom 1.2s linear;
+}
+.sky-sun {
+  width: 70vmax;
+  height: 70vmax;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--sky-glow) 0%, color-mix(in srgb, var(--sky-glow) 35%, transparent) 30%, transparent 68%);
+  transition: left 1.2s linear, top 1.2s linear, opacity 1.2s linear, --sky-glow 1.2s linear;
+}
+
+/* ------------------------------------------------------------------ glass */
+
+/*
+ * A slab of clear acrylic: a translucent fill that blurs the sky behind it, a bright top edge where the
+ * light catches it, a faint rim, and a light, soft shadow. No texture: the sky is the only material.
+ */
+@utility glass {
+  background: var(--glass-fill);
+  backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    inset 0 0 0 1px var(--glass-rim),
+    var(--glass-shadow);
+}
+/* Menus, dialogs and popovers: same glass, denser, so text stays crisp over anything. */
+@utility glass-strong {
+  background: var(--glass-fill-strong);
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    inset 0 0 0 1px var(--glass-rim),
+    0 18px 40px -18px rgb(2 4 18 / 0.5);
+}
+/* A recessed area inside a slab (rows, inputs, tracks): darker in dark mode, a soft tint in light. */
+@utility glass-well {
+  background: var(--glass-well);
+}
+/* The hour's colour washed over a slab: used once per page for the slab that leads it. */
+@utility sky-tint {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--sky-accent) 30%, transparent), color-mix(in srgb, var(--sky-accent) 6%, transparent) 70%),
+    var(--glass-fill);
+}
+
+/* Chart tokens: the validated series palette, stepped per mode. */
+:root {
+  --viz-bar: var(--series-1);
+  --viz-warning: #fab219;
+  --viz-critical: #d03b3b;
+  --viz-grid: rgb(17 26 68 / 0.1);
+  --viz-axis: rgb(17 26 68 / 0.22);
+}
+.dark {
+  --viz-critical: #ff6b81;
+  --viz-grid: rgb(255 255 255 / 0.1);
+  --viz-axis: rgb(255 255 255 / 0.22);
+}
+
+/*
+ * Scrollbars everywhere: a slim, rounded bar with no track and no arrow buttons, invisible at rest and
+ * shown while something scrolls (lib/scrollbars.ts sets --sb-alpha and fades it out), or on hover.
+ */
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-button {
+  display: none;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--sb-thumb) / calc(0.55 * var(--sb-alpha, 0)));
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background-color: rgb(var(--sb-thumb) / 0.75);
+}
+/* For areas that scroll (wheel, trackpad, drag) but should not show a bar at all, like the notes board. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+:root {
+  --sb-thumb: 17 26 68;
+}
+.dark {
+  --sb-thumb: 255 255 255;
+}
+
+/* Night stars: each star twinkles (scale + opacity) and wanders a few pixels along its own path, each on its own timing. */
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: var(--star-min, 0.25);
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+@keyframes star-wander {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: var(--x1, 6px) var(--y1, 4px);
+  }
+  50% {
+    translate: var(--x2, -5px) var(--y2, 7px);
+  }
+  75% {
+    translate: var(--x3, 4px) var(--y3, -6px);
+  }
+}
+
+/* Page entrance: content settles in once when a page opens (the one authored motion moment). */
+@keyframes page-settle {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.page-settle {
+  animation: page-settle 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .star {
+    animation: none !important;
+    opacity: 0.7;
+  }
+  .page-settle,
+  .now-line {
+    animation: none !important;
+  }
+  .sky,
+  .sky-sun {
+    transition: none !important;
+  }
+}
+
+/* Custom colour picker (react-colorful), restyled to match the app: rounded square + pill hue slider. */
+.color-picker.react-colorful {
+  width: 100%;
+  height: 176px;
+  gap: 10px;
+}
+.color-picker .react-colorful__saturation {
+  border-radius: 12px;
+  border-bottom: 0;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+.color-picker .react-colorful__hue {
+  flex: none;
+  height: 12px;
+  border-radius: 9999px;
+}
+.color-picker .react-colorful__pointer {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.25);
+}
