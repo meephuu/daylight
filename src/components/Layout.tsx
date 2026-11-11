@@ -41,7 +41,7 @@ function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: L
       end={to === "/"}
       className={({ isActive }) =>
         cn(
-          "group/nav relative flex h-9 items-center gap-3 rounded-xl px-3 text-sm font-medium outline-none transition-[background-color,color,box-shadow] duration-150",
+          "group/nav relative flex h-10 items-center gap-3 rounded-full px-3.5 text-sm font-medium outline-none transition-[background-color,color,box-shadow] duration-150",
           "focus-visible:ring-3 focus-visible:ring-ring/50",
           isActive
             ? "bg-white/75 text-foreground shadow-[inset_0_1px_0_var(--glass-edge),inset_0_0_0_1px_color-mix(in_srgb,var(--sky-accent)_45%,transparent),0_2px_10px_-6px_rgb(0_0_0/0.3)] dark:bg-white/[0.14]"
@@ -76,10 +76,10 @@ export function Layout() {
       <SkyBackground />
       <TitleBar section={section} />
       <div className="flex min-h-0 flex-1 gap-3 px-3 pb-3">
-        <aside className="glass flex w-[212px] shrink-0 flex-col rounded-2xl p-2.5">
+        <aside className="pane flex w-[212px] shrink-0 flex-col p-2.5">
           <div className="flex items-center gap-2.5 px-2.5 pt-1.5 pb-4">
             <img src={logo} alt="" className="size-7 drop-shadow-[0_2px_6px_rgb(0_0_0/0.25)]" />
-            <span className="text-[17px] font-semibold tracking-[-0.02em]">Daylight</span>
+            <span className="font-display text-[20px] font-semibold tracking-[-0.03em]">Daylight</span>
             <span className="rounded-md bg-foreground/10 px-1.5 py-0.5 text-[11px] font-semibold text-foreground/75 tabular-nums">
               2.0
             </span>

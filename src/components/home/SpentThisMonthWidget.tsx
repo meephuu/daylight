@@ -32,7 +32,7 @@ export function SpentThisMonthWidget() {
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
-        <p className="text-[34px] leading-none font-semibold tracking-[-0.02em]">{formatTHB(spent)}</p>
+        <p className="display-num text-[40px]">{formatTHB(spent)}</p>
 
         {days.length > 0 && (
           <div className="flex items-end gap-[2px]" style={{ height: BAR_AREA }} aria-label="Spending per day this month">

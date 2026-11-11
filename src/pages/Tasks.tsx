@@ -6,11 +6,13 @@ import { QuickAdd } from "@/components/QuickAdd";
 import { TaskFormDialog } from "@/components/TaskFormDialog";
 import { TaskItem } from "@/components/TaskItem";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/PageHeader";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useProjects } from "@/hooks/useProjects";
 import { useDeleteTask, useSetTaskStatus, useTasks } from "@/hooks/useTasks";
+import { isOverdue } from "@/lib/dates";
 import type { Task } from "@/lib/db/tasks";
+import { cn } from "@/lib/utils";
 import {
   buildSections,
   filterByProject,
@@ -85,75 +87,89 @@ export default function TasksPage() {
 
   const selectedProject = projectId === null ? undefined : projectsById.get(projectId);
 
+  const overdueCount = useMemo(
+    () => tasksForView(projectTasks, "upcoming").filter((task) => task.dueDate !== null && isOverdue(task.dueDate)).length,
+    [projectTasks],
+  );
+
   return (
-    <div className="mx-auto flex max-w-[1320px] gap-6">
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">
-            Tasks
-            {selectedProject && (
-              <span className="ml-2 text-base font-normal text-muted-foreground">
-                in {selectedProject.name}
-              </span>
-            )}
-          </h1>
-          <Button onClick={() => openForm(null)}>
-            <Plus className="size-4" />
-            New task
-          </Button>
-        </div>
-
-        <QuickAdd
-          dueDate={null}
-          projectId={projectId}
-          focusSignal={quickAddSignal}
-        />
-
-        <Tabs value={view} onValueChange={(value) => setView(value as TaskView)}>
-          <TabsList>
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-4">
+      <PageHeader
+        title={selectedProject ? selectedProject.name : "Tasks"}
+        summary={
+          <>
+            {counts.upcoming} open
+            {overdueCount > 0 && <span className="text-destructive"> · {overdueCount} overdue</span>} · {counts.done} done
+            {selectedProject && <span className="text-foreground/60"> · in this project</span>}
+          </>
+        }
+        actions={
+          <>
             {VIEWS.map(({ value, label }) => (
-              <TabsTrigger key={value} value={value}>
+              <button
+                key={value}
+                type="button"
+                aria-pressed={view === value}
+                onClick={() => setView(value)}
+                className={cn(
+                  "flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors",
+                  view === value
+                    ? "bg-white/85 text-foreground shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.16]"
+                    : "text-foreground/70 hover:text-foreground",
+                )}
+              >
                 {label}
-                <span className="ml-1.5 text-xs text-muted-foreground">{counts[value]}</span>
-              </TabsTrigger>
+                <span className="text-xs tabular-nums opacity-70">{counts[value]}</span>
+              </button>
             ))}
-          </TabsList>
-        </Tabs>
+            <Button onClick={() => openForm(null)} className="ml-1">
+              <Plus className="size-4" />
+              New task
+            </Button>
+          </>
+        }
+      />
 
-        {tasksQuery.isError && (
-          <p className="text-sm text-destructive">Could not load tasks: {String(tasksQuery.error)}</p>
-        )}
+      <div className="flex gap-4">
+        <aside className="w-56 shrink-0 self-start lg:w-64">
+          <ProjectsPanel projects={projects} selectedId={projectId} onSelect={setProjectId} />
+        </aside>
 
-        {sections.length === 0 && !tasksQuery.isPending && (
-          <p className="py-8 text-center text-sm text-muted-foreground">{EMPTY_MESSAGES[view]}</p>
-        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          <QuickAdd dueDate={null} projectId={projectId} focusSignal={quickAddSignal} />
 
-        {sections.map((section) => (
-          <section key={section.key} className="glass flex flex-col gap-1 rounded-2xl p-2">
-            {section.title && (
-              <h2 className="px-3 pt-2 pb-1 text-[13px] font-semibold text-foreground/85">
-                {section.title} <span className="font-normal text-muted-foreground">· {section.tasks.length}</span>
-              </h2>
-            )}
-            <ul className="flex flex-col">
-              {section.tasks.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  project={task.projectId === null ? undefined : projectsById.get(task.projectId)}
-                  onToggle={handleToggle}
-                  onEdit={openForm}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </ul>
-          </section>
-        ))}
+          {tasksQuery.isError && (
+            <p className="text-sm text-destructive">Could not load tasks: {String(tasksQuery.error)}</p>
+          )}
+
+          {sections.length === 0 && !tasksQuery.isPending && (
+            <p className="pane px-6 py-10 text-center text-sm text-muted-foreground">{EMPTY_MESSAGES[view]}</p>
+          )}
+
+          {sections.map((section) => (
+            <section key={section.key} className="flex flex-col gap-2">
+              {section.title && (
+                <h2 className="flex items-baseline gap-2 px-2 font-display text-[22px] font-semibold tracking-[-0.025em]">
+                  <span className={cn(section.key === "overdue" && "text-destructive")}>{section.title}</span>
+                  <span className="text-base font-medium text-foreground/50 tabular-nums">{section.tasks.length}</span>
+                </h2>
+              )}
+              <ul className="pane flex flex-col p-2">
+                {section.tasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    project={task.projectId === null ? undefined : projectsById.get(task.projectId)}
+                    onToggle={handleToggle}
+                    onEdit={openForm}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       </div>
-
-      <aside className="w-72 shrink-0 self-start">
-        <ProjectsPanel projects={projects} selectedId={projectId} onSelect={setProjectId} />
-      </aside>
 
       {confirmDialog}
       <TaskFormDialog

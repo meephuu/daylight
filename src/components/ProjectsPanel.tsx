@@ -41,9 +41,9 @@ export function ProjectsPanel({ projects, selectedId, onSelect }: ProjectsPanelP
   }
 
   return (
-    <section className="glass flex flex-col gap-2 rounded-2xl p-3">
+    <section className="pane flex flex-col gap-2 p-3">
       <div className="flex items-center justify-between">
-        <h2 className="px-1 text-[15px] font-semibold">Projects</h2>
+        <h2 className="px-2 pt-1 font-display text-[19px] font-semibold tracking-[-0.02em]">Projects</h2>
         <Button variant="ghost" size="icon-sm" onClick={() => openForm(null)} aria-label="New project">
           <Plus className="size-4" />
         </Button>
@@ -53,7 +53,7 @@ export function ProjectsPanel({ projects, selectedId, onSelect }: ProjectsPanelP
         type="button"
         onClick={() => onSelect(null)}
         className={cn(
-          "rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-foreground/[0.06]",
+          "rounded-2xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-foreground/[0.06]",
           selectedId === null && "bg-white/70 font-medium shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.12]",
         )}
       >
@@ -68,7 +68,7 @@ export function ProjectsPanel({ projects, selectedId, onSelect }: ProjectsPanelP
             <li
               key={project.id}
               className={cn(
-                "group rounded-xl px-3 py-2 transition-colors hover:bg-foreground/[0.06]",
+                "group rounded-2xl px-3 py-2.5 transition-colors hover:bg-foreground/[0.06]",
                 selectedId === project.id && "bg-white/70 shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.12]",
                 project.archived && "opacity-60",
               )}

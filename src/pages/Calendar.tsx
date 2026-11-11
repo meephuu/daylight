@@ -15,7 +15,8 @@ import { DayCell } from "@/components/calendar/DayCell";
 import { EntryChip } from "@/components/calendar/EntryChip";
 import { TaskFormDialog } from "@/components/TaskFormDialog";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/PageHeader";
+import { cn } from "@/lib/utils";
 import { useCalendarItems, useMoveCalendarItem, useOccurrenceStates } from "@/hooks/useCalendarItems";
 import { useProjects } from "@/hooks/useProjects";
 import { useSetTaskDueDate, useTasks } from "@/hooks/useTasks";
@@ -101,6 +102,14 @@ export default function CalendarPage() {
     }
   }
 
+  // The page summary counts what falls in the month (or week) being shown.
+  const inRange = useMemo(() => {
+    const keys = days.filter((day) => mode === "week" || day.getMonth() === cursor.getMonth()).map(toDateString);
+    return keys.flatMap((key) => entries.get(key) ?? []);
+  }, [days, entries, mode, cursor]);
+  const visibleCount = inRange.length;
+  const openTasks = inRange.filter((entry) => entry.kind === "task" && !entry.done).length;
+
   function showDay(day: Date) {
     setCursor(day);
     setMode("week");
@@ -108,40 +117,44 @@ export default function CalendarPage() {
 
   return (
     <div className="mx-auto flex max-w-[1480px] flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">{formatRangeTitle(mode, days, cursor)}</h1>
-        <div className="flex items-center gap-2">
-          <Tabs value={mode} onValueChange={(value) => setMode(value as CalendarMode)}>
-            <TabsList>
-              <TabsTrigger value="month">Month</TabsTrigger>
-              <TabsTrigger value="week">Week</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button variant="outline" onClick={() => setCursor(new Date())}>
-            Today
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCursor(shiftCursor(mode, cursor, -1))}
-            aria-label={`Previous ${mode}`}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCursor(shiftCursor(mode, cursor, 1))}
-            aria-label={`Next ${mode}`}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-          <Button onClick={() => setChooserDate(todayString())}>
-            <Plus className="size-4" />
-            Add
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={formatRangeTitle(mode, days, cursor)}
+        summary={`${visibleCount} ${visibleCount === 1 ? "thing" : "things"} this ${mode}${openTasks > 0 ? ` · ${openTasks} open ${openTasks === 1 ? "task" : "tasks"}` : ""}`}
+        actions={
+          <>
+            {(["month", "week"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={mode === value}
+                onClick={() => setMode(value)}
+                className={cn(
+                  "h-9 rounded-full px-4 text-sm font-medium capitalize transition-colors",
+                  mode === value
+                    ? "bg-white/85 text-foreground shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.16]"
+                    : "text-foreground/70 hover:text-foreground",
+                )}
+              >
+                {value}
+              </button>
+            ))}
+            <span className="mx-1 h-5 w-px bg-foreground/15" aria-hidden="true" />
+            <Button variant="ghost" size="icon" onClick={() => setCursor(shiftCursor(mode, cursor, -1))} aria-label={`Previous ${mode}`}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button variant="ghost" onClick={() => setCursor(new Date())}>
+              Today
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setCursor(shiftCursor(mode, cursor, 1))} aria-label={`Next ${mode}`}>
+              <ChevronRight className="size-4" />
+            </Button>
+            <Button onClick={() => setChooserDate(todayString())} className="ml-1">
+              <Plus className="size-4" />
+              Add
+            </Button>
+          </>
+        }
+      />
 
       {(tasksQuery.isError || itemsQuery.isError) && (
         <p className="text-sm text-destructive">
@@ -155,12 +168,12 @@ export default function CalendarPage() {
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDragging(null)}
       >
-        <div className="glass overflow-hidden rounded-2xl">
+        <div className="pane overflow-hidden">
           <div className="grid grid-cols-7">
             {WEEKDAY_LABELS.map((label) => (
               <div
                 key={label}
-                className="border-r border-b border-foreground/[0.08] px-2.5 py-2 text-xs font-semibold text-muted-foreground last:border-r-0"
+                className="border-r border-b border-foreground/[0.08] px-3 py-2.5 text-xs font-semibold text-foreground/70 last:border-r-0"
               >
                 {label}
               </div>
@@ -184,7 +197,7 @@ export default function CalendarPage() {
         </DragOverlay>
       </DndContext>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="px-1 text-xs text-foreground/70">
         Click a day to add a task, event or reminder. Click anything to edit it, or drag a task or one-off item to
         another day. Repeating items change through their edit dialog. Tasks without a due date are not shown here.
       </p>

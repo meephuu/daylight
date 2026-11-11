@@ -3,6 +3,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { ImagePlus, Plus, Search } from "lucide-react";
 import { ColorSwatches } from "@/components/ColorSwatches";
 import { PostIt } from "@/components/notes/PostIt";
+import { Toolbar } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateImageNote, useCreateNote, useMoveNote, useNotes } from "@/hooks/useNotes";
@@ -193,27 +194,34 @@ export default function NotesPage() {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">Notes</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 px-1 pt-3">
+        <div className="mr-auto">
+          <h1 className="font-display text-[44px] leading-none font-semibold tracking-[-0.035em]">Notes</h1>
+          <p className="mt-2.5 text-[15px] text-foreground/80">
+            {notes.length} {notes.length === 1 ? "note" : "notes"} on the board
+          </p>
+        </div>
+        <Toolbar className="pr-2">
           <Button onClick={addNote} disabled={createNote.isPending}>
             <Plus className="size-4" />
             New note
           </Button>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={createImageNote.isPending}>
+          <Button variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={createImageNote.isPending}>
             <ImagePlus className="size-4" />
             Add picture
           </Button>
           <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFilesChosen} />
+          <span className="mx-1 h-5 w-px bg-foreground/15" aria-hidden="true" />
           <ColorSwatches value={newColor} colors={NOTE_COLORS} onChange={chooseColor} allowCustom />
-        </div>
-        <div className="relative ml-auto w-64">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        </Toolbar>
+        <div className="pane relative w-64 rounded-full">
+          <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search notes"
-            className="pl-8"
+            aria-label="Search notes"
+            className="h-11 rounded-full border-transparent bg-transparent pl-10 shadow-none dark:bg-transparent"
           />
         </div>
       </div>
@@ -230,7 +238,7 @@ export default function NotesPage() {
         onPointerMove={handlePanMove}
         onPointerUp={handlePanEnd}
         onPointerCancel={handlePanEnd}
-        className={`no-scrollbar isolate min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/30 ${
+        className={`no-scrollbar isolate min-h-0 flex-1 overflow-auto rounded-[26px] bg-foreground/[0.04] shadow-[inset_0_0_0_1px_var(--glass-rim)] dark:bg-black/[0.12] ${
           panning ? "cursor-grabbing" : "cursor-grab"
         }`}
       >
@@ -242,7 +250,7 @@ export default function NotesPage() {
             style={{
               width: boardSize.width,
               height: boardSize.height,
-              backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)",
+              backgroundImage: "radial-gradient(circle, color-mix(in srgb, var(--foreground) 16%, transparent) 1px, transparent 1.2px)",
               backgroundSize: "24px 24px",
             }}
           >
@@ -263,7 +271,7 @@ export default function NotesPage() {
         </DndContext>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="px-1 text-xs text-foreground/70">
         {searching
           ? `${matchCount} of ${notes.length} notes match. Others are faded.`
           : "Drag empty space to pan around the board. Drag a note by its top bar to move it, the bottom-right corner to resize, and use the pin to keep a note on top. Paste a picture with Ctrl+V or use “Add picture”."}

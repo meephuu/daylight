@@ -58,15 +58,18 @@ export function QuickAdd({ dueDate, projectId, focusSignal }: QuickAddProps) {
   }
 
   return (
-    <div className="relative">
-      <Plus className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="pane relative rounded-full">
+      <span className="pointer-events-none absolute top-1/2 left-2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-sky-accent text-white dark:text-[#0b1033]">
+        <Plus className="size-4" strokeWidth={2.5} />
+      </span>
       <Input
         ref={inputRef}
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Add a task and press Enter  (use #tags)"
-        className="h-10 pl-9"
+        placeholder="Add a task, press Enter. Use #tags."
+        aria-label="Quick add a task"
+        className="h-13 rounded-full border-transparent bg-transparent pl-14 text-[15px] shadow-none dark:bg-transparent"
         disabled={createTask.isPending}
       />
     </div>

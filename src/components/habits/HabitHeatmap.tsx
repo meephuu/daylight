@@ -97,7 +97,7 @@ export function HabitHeatmap({ habit, countsByDate }: HabitHeatmapProps) {
                   onClick={() => handleClick(day.date, count)}
                   title={`${day.label}: ${count}`}
                   aria-label={`${day.label}: ${count}`}
-                  className="size-3 rounded-[3px] bg-foreground/[0.09] outline-offset-1 hover:outline hover:outline-1 hover:outline-foreground/40"
+                  className="size-3 rounded-full bg-foreground/[0.09] outline-offset-1 transition-transform hover:scale-125 hover:outline hover:outline-1 hover:outline-foreground/40"
                   style={
                     count > 0
                       ? { backgroundColor: habit.color, opacity: 0.35 + 0.65 * ratio }

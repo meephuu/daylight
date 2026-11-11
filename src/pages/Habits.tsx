@@ -29,7 +29,10 @@ import {
   useSetHabitArchived,
 } from "@/hooks/useHabits";
 import type { Habit, HabitLog } from "@/lib/db/habits";
-import { groupLogsByHabit } from "@/lib/habits";
+import { computeStreak, groupLogsByHabit } from "@/lib/habits";
+import { todayString } from "@/lib/dates";
+import { PageHeader } from "@/components/PageHeader";
+import { HabitToggles } from "@/components/home/HabitToggles";
 import { cn } from "@/lib/utils";
 
 interface SortableHabitProps {
@@ -47,7 +50,7 @@ function SortableHabit({ habit, logs, onEdit, onToggleArchived, onDelete }: Sort
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("relative", isDragging && "z-10 [&>[data-slot=card]]:shadow-xl [&>[data-slot=card]]:ring-primary/50")}
+      className={cn("relative", isDragging && "z-10 [&>[data-slot=card]]:shadow-xl")}
     >
       <HabitCard
         habit={habit}
@@ -59,7 +62,7 @@ function SortableHabit({ habit, logs, onEdit, onToggleArchived, onDelete }: Sort
           <button
             type="button"
             ref={setActivatorNodeRef}
-            className="-ml-1 cursor-grab touch-none rounded p-1 text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 active:cursor-grabbing"
+            className="-ml-1 mt-1 cursor-grab touch-none rounded-full p-1 text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 active:cursor-grabbing"
             aria-label={`Reorder ${habit.name}. Drag, or press Space and use the arrow keys.`}
             title="Drag to reorder"
             {...attributes}
@@ -107,6 +110,12 @@ export default function HabitsPage() {
   }
 
   const visible = showArchived ? habits : active;
+  const today = todayString();
+  // The habit with the longest current streak, for the page summary.
+  const leader = active
+    .map((habit) => ({ habit, streak: computeStreak(habit, logsByHabit.get(habit.id) ?? [], today) }))
+    .filter((row) => row.streak.current > 0)
+    .sort((a, b) => b.streak.current - a.streak.current)[0];
   const archivedCount = habits.filter((habit) => habit.archived).length;
 
   function openForm(habit: Habit | null) {
@@ -124,14 +133,23 @@ export default function HabitsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">Habits</h1>
-        <Button onClick={() => openForm(null)}>
-          <Plus className="size-4" />
-          New habit
-        </Button>
-      </div>
+    <div className="mx-auto flex max-w-[1240px] flex-col gap-3">
+      <PageHeader
+        title="Habits"
+        summary={
+          leader
+            ? `${active.length} ${active.length === 1 ? "habit" : "habits"} · longest run right now: ${leader.habit.name}, ${leader.streak.current} ${leader.habit.frequency === "daily" ? "days" : "weeks"}`
+            : `${active.length} ${active.length === 1 ? "habit" : "habits"}`
+        }
+        actions={
+          <Button onClick={() => openForm(null)}>
+            <Plus className="size-4" />
+            New habit
+          </Button>
+        }
+      />
+
+      {active.length > 0 && <HabitToggles title="Today" showLink={false} />}
 
       {(habitsQuery.isError || logsQuery.isError) && (
         <p className="text-sm text-destructive">
@@ -178,8 +196,8 @@ export default function HabitsPage() {
         </Button>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        Click a square in the heatmap to log (or cycle) that day, e.g. to fill in a day you missed. Drag a card by its grip to change the order.
+      <p className="px-1 text-xs text-foreground/70">
+        Click a circle in the heatmap to log (or cycle) that day, e.g. to fill in a day you missed. Drag a card by its grip to change the order.
       </p>
 
       <HabitFormDialog open={formOpen} onOpenChange={setFormOpen} habit={editing} />

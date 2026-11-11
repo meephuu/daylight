@@ -13,6 +13,7 @@ import { PendingExpensesCard } from "@/components/expenses/PendingExpensesCard";
 import { RecurringDialog } from "@/components/expenses/RecurringDialog";
 import { TransactionList } from "@/components/expenses/TransactionList";
 import { UpcomingRecurringCard } from "@/components/expenses/UpcomingRecurringCard";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCategories } from "@/hooks/useCategories";
@@ -165,46 +166,46 @@ export default function ExpensesPage() {
   const activeRules = rules.filter((rule) => rule.active).length;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">Expenses</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setMonthKey(shiftMonthKey(monthKey, -1))} aria-label="Previous month">
-            <ChevronLeft className="size-4" />
-          </Button>
-          <span className="min-w-32 text-center text-sm font-medium" aria-live="polite">
-            {format(monthDate, "MMMM yyyy")}
-          </span>
-          <Button variant="outline" size="icon" onClick={() => setMonthKey(shiftMonthKey(monthKey, 1))} aria-label="Next month">
-            <ChevronRight className="size-4" />
-          </Button>
-          {!isCurrentMonth && (
-            <Button variant="outline" onClick={() => setMonthKey(currentMonth)}>
-              This month
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-3">
+      <PageHeader
+        title={
+          <>
+            Expenses <span className="text-foreground/50">{format(monthDate, "MMMM")}</span>
+          </>
+        }
+        summary={`${monthExpenses.length} ${monthExpenses.length === 1 ? "transaction" : "transactions"} in ${format(monthDate, "MMMM yyyy")}`}
+        actions={
+          <>
+            <Button variant="ghost" size="icon" onClick={() => setMonthKey(shiftMonthKey(monthKey, -1))} aria-label="Previous month">
+              <ChevronLeft className="size-4" />
             </Button>
-          )}
-          <Button onClick={() => openForm(null)} title="Shortcut: N">
-            <Plus className="size-4" />
-            Add expense
-            <kbd className="ml-1 rounded border border-primary-foreground/40 px-1 text-[10px]">N</kbd>
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => setManagerOpen(true)}>
-          <Tags className="size-4" />
-          Categories
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setMethodsOpen(true)}>
-          <CreditCard className="size-4" />
-          Payment methods
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setRecurringOpen(true)}>
-          <Repeat className="size-4" />
-          Recurring{activeRules > 0 ? ` · ${activeRules}` : ""}
-        </Button>
-      </div>
+            {!isCurrentMonth && (
+              <Button variant="ghost" onClick={() => setMonthKey(currentMonth)}>
+                This month
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => setMonthKey(shiftMonthKey(monthKey, 1))} aria-label="Next month">
+              <ChevronRight className="size-4" />
+            </Button>
+            <span className="mx-1 h-5 w-px bg-foreground/15" aria-hidden="true" />
+            <Button variant="ghost" size="icon" onClick={() => setManagerOpen(true)} aria-label="Categories" title="Categories">
+              <Tags className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setMethodsOpen(true)} aria-label="Payment methods" title="Payment methods">
+              <CreditCard className="size-4" />
+            </Button>
+            <Button variant="ghost" onClick={() => setRecurringOpen(true)} title="Recurring expenses">
+              <Repeat className="size-4" />
+              {activeRules > 0 ? activeRules : "Recurring"}
+            </Button>
+            <Button onClick={() => openForm(null)} title="Shortcut: N" className="ml-1">
+              <Plus className="size-4" />
+              Add expense
+              <kbd className="ml-1 rounded-full border border-primary-foreground/40 px-1.5 text-[10px]">N</kbd>
+            </Button>
+          </>
+        }
+      />
 
       {(expensesQuery.isError || categoriesQuery.isError) && (
         <p className="text-sm text-destructive">
@@ -214,22 +215,30 @@ export default function ExpensesPage() {
 
       <BudgetCard monthKey={monthKey} today={today} spentSatang={spent} budgetSatang={settings.budgetSatang} confirmed={confirmed} />
 
-      <PendingExpensesCard
-        pending={pending}
-        categoriesById={categoriesById}
-        onConfirm={confirmPending}
-        onEdit={(expense) => openForm(expense)}
-        onSkip={removeWithUndo}
-      />
-      <UpcomingRecurringCard rules={rules} monthKey={monthKey} today={today} categoriesById={categoriesById} />
+      <div className="grid gap-3 xl:grid-cols-2 [&:empty]:hidden">
+        <PendingExpensesCard
+          pending={pending}
+          categoriesById={categoriesById}
+          onConfirm={confirmPending}
+          onEdit={(expense) => openForm(expense)}
+          onSkip={removeWithUndo}
+        />
+        <UpcomingRecurringCard rules={rules} monthKey={monthKey} today={today} categoriesById={categoriesById} />
+      </div>
 
-      <CategoryBreakdown
-        data={byCategory}
-        budgets={budgetRows}
-        selectedId={filters.categoryId}
-        onSelect={(categoryId) => setFilters((current) => ({ ...current, categoryId }))}
-      />
-      <DailySpendingChart days={days} budgetSatang={settings.budgetSatang} />
+      <div className="grid gap-3 xl:grid-cols-12">
+        <div className="xl:col-span-7">
+          <CategoryBreakdown
+            data={byCategory}
+            budgets={budgetRows}
+            selectedId={filters.categoryId}
+            onSelect={(categoryId) => setFilters((current) => ({ ...current, categoryId }))}
+          />
+        </div>
+        <div className="xl:col-span-5">
+          <DailySpendingChart days={days} budgetSatang={settings.budgetSatang} />
+        </div>
+      </div>
 
       <Card>
         <CardHeader>

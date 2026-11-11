@@ -1,6 +1,7 @@
 import { useMemo, type KeyboardEvent } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { Copy, Repeat, Trash2 } from "lucide-react";
+import { CategoryAvatar } from "@/components/expenses/CategoryAvatar";
 import { Button } from "@/components/ui/button";
 import type { Category } from "@/lib/db/categories";
 import type { Expense } from "@/lib/db/expenses";
@@ -65,14 +66,18 @@ export function TransactionList({
     const name = category?.name ?? "Unknown category";
 
     return (
-      <li key={expense.id} className="group flex items-center gap-3 py-1.5">
-        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: category?.color ?? "#9CA3AF" }} aria-hidden="true" />
+      <li key={expense.id} className="group flex items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-foreground/[0.05]">
+        {category ? (
+          <CategoryAvatar category={category} className="size-9" />
+        ) : (
+          <span className="size-9 shrink-0 rounded-full bg-foreground/15" aria-hidden="true" />
+        )}
         <button
           type="button"
           data-row-main
           onClick={() => onEdit(expense)}
           aria-label={`Edit ${name} ${formatTHB(expense.amountSatang)}${expense.note ? `, ${expense.note}` : ""}`}
-          className="flex min-w-0 flex-1 flex-col items-start rounded-md px-1.5 py-1 text-left outline-none hover:bg-accent/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex min-w-0 flex-1 flex-col items-start rounded-lg px-1 py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <span className="flex max-w-full items-center gap-1.5 text-sm font-medium">
             <span className="truncate">{name}</span>
@@ -90,23 +95,23 @@ export function TransactionList({
             <Trash2 className="size-4" />
           </Button>
         </span>
-        <span className="w-28 shrink-0 text-right text-sm font-medium tabular-nums">{formatTHB(expense.amountSatang)}</span>
+        <span className="w-32 shrink-0 text-right font-display text-[17px] font-semibold tracking-[-0.02em] tabular-nums">{formatTHB(expense.amountSatang)}</span>
       </li>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4" onKeyDown={moveFocus}>
+    <div className="flex flex-col gap-5" onKeyDown={moveFocus}>
       {groups.map(([date, rows]) => (
         <section key={date || "all"} aria-label={date ? dayLabel(date, today) : "Transactions"}>
           {byDate && (
-            <h3 className="mb-0.5 flex items-baseline justify-between gap-3 text-xs font-medium text-muted-foreground">
+            <h3 className="mb-1 flex items-baseline justify-between gap-3 px-2 font-display text-[15px] font-semibold tracking-[-0.015em]">
               <span>{dayLabel(date, today)}</span>
               {/* A day with a single transaction would only repeat that row's amount. */}
-              {rows.length > 1 && <span className="tabular-nums">{formatTHB(sumSatang(rows))}</span>}
+              {rows.length > 1 && <span className="font-sans text-xs font-medium text-muted-foreground tabular-nums">{formatTHB(sumSatang(rows))}</span>}
             </h3>
           )}
-          <ul className="divide-y">{rows.map(renderRow)}</ul>
+          <ul className="flex flex-col">{rows.map(renderRow)}</ul>
         </section>
       ))}
     </div>

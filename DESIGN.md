@@ -34,57 +34,59 @@ colors:
   series-7: "#9a7cf2"
   series-8: "#e95560"
 typography:
+  display-hero:
+    fontFamily: "Bricolage Grotesque Variable, Anuphan Variable, sans-serif"
+    fontSize: "60px"
+    fontWeight: 600
+    lineHeight: 0.95
+    letterSpacing: "-0.04em"
   page-title:
-    fontFamily: "Geist Variable, Prompt, sans-serif"
-    fontSize: "28px"
+    fontFamily: "Bricolage Grotesque Variable, Anuphan Variable, sans-serif"
+    fontSize: "44px"
     fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: "-0.025em"
-  greeting:
-    fontFamily: "Geist Variable, Prompt, sans-serif"
-    fontSize: "32px"
+    lineHeight: 1
+    letterSpacing: "-0.035em"
+  pane-title:
+    fontFamily: "Bricolage Grotesque Variable, Anuphan Variable, sans-serif"
+    fontSize: "19px"
     fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: "-0.025em"
-  slab-title:
-    fontFamily: "Geist Variable, Prompt, sans-serif"
-    fontSize: "15px"
-    fontWeight: 600
-    lineHeight: 1.35
-    letterSpacing: "-0.01em"
+    lineHeight: 1.2
+    letterSpacing: "-0.02em"
   body:
-    fontFamily: "Geist Variable, Prompt, sans-serif"
+    fontFamily: "Onest Variable, Anuphan Variable, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.45
   caption:
-    fontFamily: "Geist Variable, Prompt, sans-serif"
+    fontFamily: "Onest Variable, Anuphan Variable, sans-serif"
     fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.35
 rounded:
-  control: "12px"
-  row: "12px"
-  slab: "21.6px"
+  input: "14px"
+  row: "16px"
+  pane: "26px"
+  dialog: "28px"
+  pill: "9999px"
 spacing:
   gutter: "12px"
   slab-pad: "20px"
   hero-pad: "24px"
 components:
-  slab:
+  pane:
     backgroundColor: "{colors.glass-dark}"
     textColor: "{colors.ink-dark}"
-    rounded: "{rounded.slab}"
-    padding: "{spacing.slab-pad}"
+    rounded: "{rounded.pane}"
+    padding: "24px"
   button-primary:
     backgroundColor: "{colors.primary-dark}"
     textColor: "{colors.ink-light}"
-    rounded: "{rounded.control}"
-    height: "32px"
+    rounded: "{rounded.pill}"
+    height: "36px"
   dialog:
     backgroundColor: "{colors.glass-dark-strong}"
     textColor: "{colors.ink-dark}"
-    rounded: "{rounded.slab}"
+    rounded: "{rounded.pane}"
     padding: "20px"
 ---
 
@@ -120,10 +122,12 @@ Eight validated categorical series (`--series-1..8`; dataviz validator, all chec
 
 ## Typography
 
-Geist Variable for everything; Thai falls back to Prompt (bundled offline). Rank comes from size and weight, never from extra boxes. Tabular figures only where numbers align (times, axis ticks, counts in rows); big standalone numbers stay proportional.
+Two voices, both bundled offline, with Anuphan behind each for Thai:
+- **Bricolage Grotesque** (display, optical size on): page titles at 44px set straight on the sky, the Home greeting up to 60px, pane titles at 19px, and every number that anchors a page (the clock, the month's spend, the week score at 120px, streaks, day numbers). Use `display-num` for numbers: proportional figures, tight tracking.
+- **Onest** (UI): everything read and operated, 14px body, 12px meta.
 
 ### Hierarchy
-Greeting 32/600, page title 28/600 (tracking -0.025em), slab title 15/600, body 14, captions and meta 12 in the muted ink. No uppercase tracked eyebrows.
+Page title 44 > big numbers 40-120 > pane title 19 > body 14 > meta 12. No uppercase tracked eyebrows; a heading carries its own weight.
 
 ## Layout
 
@@ -135,17 +139,16 @@ Depth is glass, not shadow. A slab is a translucent fill with `backdrop-filter: 
 
 ## Shapes
 
-Slabs 21.6px (`rounded-2xl`), rows, controls and inner tiles 12px (`rounded-lg`/`rounded-xl`), chips 6px, data cells 3px. Dots mark identity colour; no coloured side borders on cards, chips or rows.
+Panes 26px, dialogs 28px, rows 16px, inputs 14px. Every control that can be a pill is one: buttons, toggles, segmented switches, chips, the quick-add field, the search field, the nav items. Checkboxes and habit toggles are round. Heatmap cells are dots. Dots mark identity colour; no coloured side borders anywhere.
 
 ## Components
 
-- **Slab** (`Card`, `.glass`): the single container.
-- **Next-up slab**: the only slab washed with the hour's colour.
-- **Day strip**: the day as one strip where block length is duration, the elapsed part dimmed, and a static now-line in the sky accent.
-- **Rows**: 36px, rounded, hover wash `foreground/5%`, no dividers.
-- **Buttons**: primary solid ink, outline clear glass, ghost bare; they lift 1px on hover and press down on click.
-- **Checkbox and switch**: fill with the sky accent when on.
-- **Charts**: series tokens, hairline grids (`--viz-grid`), glass-strong tooltips.
+- **PageHeader**: title on the sky, a one-line summary in the page's own numbers, actions grouped in one glass pill toolbar.
+- **Pane** (`Card`, `.pane`): the single container; never nested.
+- **Home**: hero on the sky (greeting, day summary, the sun's real arc with the clock), then the vertical agenda (blocks as tall as they last, now-line), Next-up (the hour's colour), Tasks (Due / Upcoming switch), Habits as round toggles, training, money.
+- **Rows**: round check, title, meta line, pills on the right (project, due date; overdue tinted red with an icon).
+- **Numbers on the sky**: page-level totals (Expenses, Training, Review) are set as type with hairline separators, never boxed in tiles.
+- **Charts**: series tokens, hairline grids, glass-strong tooltips; Training's history is a column per week.
 
 ## Do's and Don'ts
 

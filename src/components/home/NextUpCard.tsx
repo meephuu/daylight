@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Moon } from "lucide-react";
-import { useDayEntries, useNowMinutes } from "@/components/home/DayTimetable";
+import { useDayEntries, useNowMinutes } from "@/hooks/useDay";
 import { timeToMinutes } from "@/lib/calendarItems";
 import { formatDueDateTime, todayString } from "@/lib/dates";
 import type { Task } from "@/lib/db/tasks";
@@ -48,21 +48,21 @@ export function NextUpCard({ nextDeadline }: NextUpCardProps) {
 
   return (
     <section
-      className="flex h-full min-h-56 flex-col justify-between gap-6 rounded-2xl p-6 shadow-[inset_0_1px_0_var(--glass-edge),inset_0_0_0_1px_var(--glass-rim),var(--glass-shadow)] backdrop-blur-[22px]"
+      className="flex min-h-60 flex-col justify-between gap-6 rounded-[26px] p-6 shadow-[inset_0_1px_0_var(--glass-edge),inset_0_0_0_1px_var(--glass-rim),var(--glass-shadow)] backdrop-blur-[22px]"
       style={{
         // The hour's colour, poured through the glass.
         background:
           "linear-gradient(150deg, color-mix(in srgb, var(--sky-accent) 46%, transparent), color-mix(in srgb, var(--sky-accent) 14%, transparent) 75%), var(--glass-fill)",
       }}
     >
-      <h2 className="text-[15px] font-semibold tracking-[-0.01em]">
+      <h2 className="font-display text-[19px] leading-tight font-semibold tracking-[-0.02em]">
         {current ? "Happening now" : "Next up"}
-        {lead && !current && <span className="ml-2 font-normal text-foreground/75">{untilLabel(leadStart - now)}</span>}
+        {lead && !current && <span className="ml-2 font-sans text-sm font-normal text-foreground/75">{untilLabel(leadStart - now)}</span>}
       </h2>
 
       {lead ? (
         <div className="min-w-0">
-          <p className="text-[44px] leading-none font-semibold tracking-[-0.03em]">
+          <p className="display-num text-[56px]">
             {current && lead.endTime ? `until ${lead.endTime}` : lead.startTime}
           </p>
           <p className="mt-2 flex items-center gap-2 text-base font-medium">
@@ -75,7 +75,7 @@ export function NextUpCard({ nextDeadline }: NextUpCardProps) {
         // Today's timeline is done: the next deadline takes the lead instead.
         <div className="min-w-0">
           <p className="text-sm text-foreground/80">Today's timeline is clear. Next deadline</p>
-          <p className="mt-1 text-[30px] leading-tight font-semibold tracking-[-0.02em]">
+          <p className="display-num mt-2 text-[40px]">
             {formatDueDateTime(nextDeadline.dueDate, nextDeadline.dueTime)}
           </p>
           <p className="mt-1 line-clamp-2 text-base font-medium">{nextDeadline.title}</p>

@@ -140,7 +140,7 @@ export const NoteBody = forwardRef<NoteBodyHandle, NoteBodyProps>(function NoteB
         }}
         onBlur={onBlur}
         placeholder="Write something…"
-        className={cn("min-h-0 w-full flex-1 resize-none bg-transparent px-3 pt-1 pb-4 outline-none", TEXT_CLASS)}
+        className={cn("min-h-0 w-full flex-1 resize-none bg-transparent px-4 pt-1 pb-4 outline-none", TEXT_CLASS)}
       />
     );
   }
@@ -199,7 +199,7 @@ export const NoteBody = forwardRef<NoteBodyHandle, NoteBodyProps>(function NoteB
 
   return (
     <div
-      className="min-h-0 flex-1 cursor-text overflow-y-auto px-3 pt-1 pb-4"
+      className="min-h-0 flex-1 cursor-text overflow-y-auto px-4 pt-1 pb-4"
       onClick={(event) => {
         // Clicking the empty space below the last row continues writing there.
         if (event.target === event.currentTarget) focusRow(rows.length - 1, rows[rows.length - 1]?.text.length ?? 0);
@@ -217,7 +217,7 @@ export const NoteBody = forwardRef<NoteBodyHandle, NoteBodyProps>(function NoteB
                 lastConversion.current = null;
                 onChange(serializeRows(toggleItem(rows, index)));
               }}
-              className="mt-[5px] flex size-4 shrink-0 items-center justify-center rounded-[4px] border-[1.5px] border-current outline-none focus-visible:ring-2 focus-visible:ring-current"
+              className="mt-[5px] flex size-4 shrink-0 items-center justify-center rounded-full border-[1.5px] border-current outline-none focus-visible:ring-2 focus-visible:ring-current"
             >
               {row.checked && <Check className="size-3" strokeWidth={3.5} aria-hidden="true" />}
             </button>

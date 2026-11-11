@@ -6,6 +6,7 @@ import { MoneyPanel } from "@/components/review/MoneyPanel";
 import { ReviewHero } from "@/components/review/ReviewHero";
 import { TasksPanel } from "@/components/review/TasksPanel";
 import { WeekStrip } from "@/components/review/WeekStrip";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useCategories } from "@/hooks/useCategories";
 import { useExpenseSettings, useExpenses } from "@/hooks/useExpenses";
@@ -69,25 +70,25 @@ export default function ReviewPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">Weekly review</h1>
-          <p className="text-sm text-muted-foreground">{title}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCursor(addWeeks(cursor, -1))} aria-label="Previous week">
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => setCursor(addWeeks(cursor, 1))} aria-label="Next week">
-            <ChevronRight className="size-4" />
-          </Button>
-          {!isThisWeek && (
-            <Button variant="outline" onClick={() => setCursor(new Date())}>
-              This week
+      <PageHeader
+        title="Weekly review"
+        summary={`${isThisWeek ? "This week, " : ""}${title}`}
+        actions={
+          <>
+            <Button variant="ghost" size="icon" onClick={() => setCursor(addWeeks(cursor, -1))} aria-label="Previous week">
+              <ChevronLeft className="size-4" />
             </Button>
-          )}
-        </div>
-      </div>
+            {!isThisWeek && (
+              <Button variant="ghost" onClick={() => setCursor(new Date())}>
+                This week
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => setCursor(addWeeks(cursor, 1))} aria-label="Next week">
+              <ChevronRight className="size-4" />
+            </Button>
+          </>
+        }
+      />
 
       {loadError && <p className="text-sm text-destructive">Could not load all data: {String(loadError.error)}</p>}
 

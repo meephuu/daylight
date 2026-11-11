@@ -21,7 +21,7 @@ export function ProjectProgressWidget({ projects }: { projects: Project[] }) {
             No projects yet. Create one on the Tasks page.
           </p>
         ) : (
-          <ul className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+          <ul className="grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
             {active.map((project) => {
               const percent =
                 project.totalTasks === 0 ? 0 : Math.round((project.doneTasks / project.totalTasks) * 100);

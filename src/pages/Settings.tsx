@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Monitor, Moon, Sun, Sunrise, Sunset, Tags, type LucideIcon } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { CategoryManagerDialog } from "@/components/expenses/CategoryManagerDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,9 +18,9 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: LucideIcon }[] = [
 
 function SettingsSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <section className="glass grid gap-4 rounded-2xl p-5 md:grid-cols-[220px_1fr] md:gap-8">
+    <section className="pane grid gap-4 p-6 md:grid-cols-[240px_1fr] md:gap-8">
       <div>
-        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <h2 className="font-display text-[19px] font-semibold tracking-[-0.02em]">{title}</h2>
         {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
       </div>
       <div className="flex flex-col gap-2">{children}</div>
@@ -38,7 +39,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-3">
-      <h1 className="mb-1 text-[28px] leading-tight font-semibold tracking-[-0.025em]">Settings</h1>
+      <PageHeader title="Settings" summary="How Daylight looks, and what it does when Windows starts." />
 
       <SettingsSection title="Appearance" description="Glass and ink for dark or light; the sky follows the clock either way.">
         <div className="flex flex-wrap gap-2">

@@ -3,7 +3,6 @@ import { ArrowDownRight, ArrowUpRight, Minus, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { BudgetMeter } from "@/components/expenses/BudgetMeter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSaveBudget } from "@/hooks/useExpenses";
@@ -22,12 +21,15 @@ interface BudgetCardProps {
   confirmed: Expense[];
 }
 
+/** A fact beside the total: set as type on the sky, not boxed. */
 function Stat({ label, children, detail, tone }: { label: string; children: ReactNode; detail?: ReactNode; tone?: "warn" }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 glass-well rounded-xl px-3.5 py-2.5">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("text-base font-semibold whitespace-nowrap tabular-nums", tone === "warn" && "text-warning")}>{children}</p>
-      {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
+    <div className="flex min-w-0 flex-col gap-1 border-l border-foreground/15 pl-5">
+      <p className="text-sm text-foreground/75">{label}</p>
+      <p className={cn("font-display text-[28px] leading-none font-semibold tracking-[-0.03em] whitespace-nowrap", tone === "warn" && "text-warning")}>
+        {children}
+      </p>
+      {detail && <p className="text-xs text-foreground/65">{detail}</p>}
     </div>
   );
 }
@@ -49,12 +51,13 @@ export function BudgetCard({ monthKey, today, spentSatang, budgetSatang, confirm
   const projectedOver = projected !== null && budgetSatang !== null && projected > budgetSatang;
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
+    // The month's total, set large on the sky, with the budget under it and the facts beside it.
+    <section className="grid gap-x-10 gap-y-6 px-1 pt-1 pb-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" aria-label={`Spent in ${monthLabel}`}>
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-sm text-muted-foreground">Spent in {monthLabel}</p>
-            <p className="mt-1 text-5xl font-semibold">{formatTHB(spentSatang)}</p>
+            <p className="text-sm font-medium text-foreground/75">Spent in {monthLabel}</p>
+            <p className="display-num mt-2 text-[72px]">{formatTHB(spentSatang)}</p>
           </div>
           {!editing && (
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
@@ -69,12 +72,11 @@ export function BudgetCard({ monthKey, today, spentSatang, budgetSatang, confirm
         ) : budgetSatang !== null ? (
           <BudgetMeter spentSatang={spentSatang} budgetSatang={budgetSatang} />
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No monthly budget set. Set one to see how much you have left.
-          </p>
+          <p className="text-sm text-foreground/75">No monthly budget set. Set one to see how much you have left.</p>
         )}
+      </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2">
+      <div className="grid content-end gap-x-6 gap-y-5 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
           {budgetSatang !== null && safe !== null && (
             <Stat
               label="Safe to spend per day"
@@ -122,9 +124,8 @@ export function BudgetCard({ monthKey, today, spentSatang, budgetSatang, confirm
               {formatTHB(projected)}
             </Stat>
           )}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 

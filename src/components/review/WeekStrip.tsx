@@ -57,10 +57,10 @@ export function WeekStrip({ report, today, workouts, workoutLogs, expenses, cate
                 aria-label={`${format(parsed, "EEEE, MMM d")}${isBest ? ", best day" : ""}`}
                 onClick={() => setSelected(isSelected ? null : entry.date)}
                 className={cn(
-                  "relative flex min-w-0 flex-col gap-1.5 rounded-xl border px-2 py-2.5 text-left outline-none transition-colors",
-                  "hover:bg-accent/50 focus-visible:ring-3 focus-visible:ring-ring/50",
-                  isSelected && "border-primary bg-primary/10",
-                  isBest && !isSelected && "border-[var(--viz-warning)]/60 bg-[var(--viz-warning)]/8",
+                  "relative flex min-w-0 flex-col gap-2 rounded-2xl bg-foreground/[0.05] px-3 py-3 text-left outline-none transition-colors",
+                  "hover:bg-foreground/[0.09] focus-visible:ring-3 focus-visible:ring-ring/50",
+                  isSelected && "bg-white/80 shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.15]",
+                  isBest && !isSelected && "ring-1 ring-[var(--viz-warning)]/70",
                   isFuture && "opacity-60",
                 )}
               >
@@ -70,8 +70,8 @@ export function WeekStrip({ report, today, workouts, workoutLogs, expenses, cate
                 </span>
                 <span
                   className={cn(
-                    "flex size-7 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
-                    isToday && "bg-primary text-primary-foreground",
+                    "flex size-10 items-center justify-center rounded-full font-display text-[24px] font-semibold tracking-[-0.03em] tabular-nums",
+                    isToday && "bg-sky-accent text-white dark:text-[#0b1033]",
                   )}
                 >
                   {format(parsed, "d")}

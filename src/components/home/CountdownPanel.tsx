@@ -44,41 +44,34 @@ function CountdownTile({ task, project, today }: { task: Task; project: Project 
 
   return (
     <Card className="gap-0 overflow-hidden py-0">
-      <div className="flex items-stretch gap-4 p-4">
+      <div className="flex items-stretch">
+        {/* The ticket stub: days left, big, in the project's colour wash. */}
         <div
-          className="flex w-28 shrink-0 flex-col items-center justify-center rounded-xl px-2 py-3 text-center"
-          style={{ backgroundColor: `color-mix(in srgb, ${accent} 16%, transparent)` }}
+          className="flex w-32 shrink-0 flex-col items-center justify-center border-r border-dashed border-foreground/15 px-3 py-5 text-center"
+          style={{ backgroundColor: `color-mix(in srgb, ${accent} 14%, transparent)` }}
           aria-label={done ? "Completed" : days === 0 ? "Due today, 0 day left" : `${Math.abs(days)} ${countdownLabel(days)}`}
         >
           {done ? (
             <>
-              <CheckCircle2 className="size-10" style={{ color: accent }} />
-              <span className="mt-1 text-xs font-medium text-muted-foreground">Done</span>
+              <CheckCircle2 className="size-11" style={{ color: accent }} />
+              <span className="mt-1.5 text-xs font-medium text-muted-foreground">Done</span>
             </>
+          ) : days === 0 ? (
+            <span className="display-num text-[34px]" style={{ color: TONE_COLOR[tone] }}>
+              Today
+            </span>
           ) : (
             <>
-              {/* TODAY has no label under it, so it gets the height of number + label and sits in the vertical
-                  middle; every tile's coloured block is then exactly the same size. */}
-              <span className={cn("flex items-center", days === 0 ? "h-[4.375rem]" : "h-12")}>
-                {days === 0 ? (
-                  <span className="text-3xl leading-none font-semibold" style={{ color: TONE_COLOR[tone] }}>
-                    Today
-                  </span>
-                ) : (
-                  <span className="text-5xl leading-none font-semibold tabular-nums" style={{ color: TONE_COLOR[tone] }}>
-                    {Math.abs(days)}
-                  </span>
-                )}
+              <span className="display-num text-[56px]" style={{ color: TONE_COLOR[tone] }}>
+                {Math.abs(days)}
               </span>
-              {days !== 0 && (
-                <span className="mt-1.5 text-xs font-medium text-muted-foreground first-letter:uppercase">{countdownLabel(days)}</span>
-              )}
+              <span className="mt-1.5 text-xs font-medium text-muted-foreground first-letter:uppercase">{countdownLabel(days)}</span>
             </>
           )}
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-          <p className="line-clamp-2 text-base leading-snug font-medium break-words">{task.title}</p>
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-5 py-4">
+          <p className="line-clamp-2 font-display text-[18px] leading-snug font-semibold tracking-[-0.015em] break-words">{task.title}</p>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <CalendarDays className="size-3.5 shrink-0" />
             {format(parseISO(dueDate), "EEE, MMM d, yyyy")}
@@ -135,9 +128,9 @@ export function CountdownPanel({ tasks, projectsById }: CountdownPanelProps) {
 
   return (
     <section aria-label="Countdown" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Hourglass className="size-4" />
+      <div className="flex items-center justify-between gap-3 px-1">
+        <h2 className="flex items-center gap-2 font-display text-[19px] font-semibold tracking-[-0.02em]">
+          <Hourglass className="size-4 text-foreground/70" />
           Countdown
         </h2>
         <Button variant="ghost" size="sm" onClick={() => setPickerOpen(true)}>

@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
-import { ProgressRing } from "@/components/review/ProgressRing";
-import { Card } from "@/components/ui/card";
 import { formatTHB } from "@/lib/money";
 import { change, headlineFor, type Headline, type WeekReport } from "@/lib/weekReport";
 import { cn } from "@/lib/utils";
@@ -46,11 +44,12 @@ function Delta({ value, format, better }: DeltaProps) {
   );
 }
 
+/** One of the week's four numbers, set as type on the sky. */
 function StatChip({ label, value, children }: { label: string; value: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 glass-well rounded-xl px-3.5 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="truncate text-xl font-semibold tabular-nums">{value}</p>
+    <div className="flex min-w-0 flex-col gap-1 border-l border-foreground/15 pl-5">
+      <p className="text-sm text-foreground/75">{label}</p>
+      <p className="truncate font-display text-[30px] leading-none font-semibold tracking-[-0.03em]">{value}</p>
       {children}
     </div>
   );
@@ -83,35 +82,34 @@ export function ReviewHero({ report, previous, isFutureWeek }: ReviewHeroProps) 
     .join(" · ");
 
   return (
-    <Card
-      className="overflow-hidden"
-      style={{ backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${color} 16%, transparent), transparent 65%)` }}
-    >
-      <div className="flex flex-col gap-5 px-5 py-1 sm:px-6">
-        <div className="flex flex-wrap items-center gap-5">
-          <ProgressRing value={(report.score ?? 0) / 100} size={112} stroke={10} color={color} label="Week score">
-            {report.score === null ? (
-              <span className="text-2xl font-semibold text-muted-foreground">–</span>
-            ) : (
-              <>
-                <span className="text-3xl leading-none font-semibold tabular-nums">{report.score}</span>
-                <span className="mt-1 text-[11px] text-muted-foreground">score</span>
-              </>
-            )}
-          </ProgressRing>
-
-          <div className="min-w-0 flex-1">
-            <h2 className="text-2xl leading-tight font-semibold sm:text-3xl">{headline.title}</h2>
-            {!isFutureWeek && <p className="mt-1 text-sm text-muted-foreground">{recap}</p>}
-            {report.score !== null && (
-              <div className="mt-1.5">
-                <Delta value={scoreChange} format={(points) => `${points} point${points === 1 ? "" : "s"}`} better="up" />
-              </div>
-            )}
-          </div>
+    // The week's verdict, set on the sky: the score as the biggest number on the page, its headline beside it.
+    <section className="flex flex-col gap-7 px-1 pb-2" aria-label="Week score">
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div className="flex flex-col">
+          <span className="display-num text-[120px]" aria-label={report.score === null ? "No score" : `Score ${report.score} of 100`}>
+            {report.score ?? "–"}
+          </span>
+          {/* The score on its 0-100 track, in the verdict's colour. */}
+          <span className="mt-3 h-1.5 w-full min-w-40 overflow-hidden rounded-full bg-foreground/15" aria-hidden="true">
+            <span className="block h-full rounded-full" style={{ width: `${report.score ?? 0}%`, backgroundColor: color }} />
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="min-w-0 flex-1 pb-4">
+          <h2 className="flex items-center gap-3 font-display text-[40px] leading-[1.05] font-semibold tracking-[-0.03em]">
+            <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+            {headline.title}
+          </h2>
+          {!isFutureWeek && <p className="mt-2 text-[15px] text-foreground/80">{recap}</p>}
+          {report.score !== null && (
+            <div className="mt-1.5">
+              <Delta value={scoreChange} format={(points) => `${points} point${points === 1 ? "" : "s"}`} better="up" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
           <StatChip label="Tasks done" value={tasksDone}>
             <Delta value={change(tasksDone, previous.completed.length)} format={String} better="up" />
           </StatChip>
@@ -128,8 +126,7 @@ export function ReviewHero({ report, previous, isFutureWeek }: ReviewHeroProps) 
               better="down"
             />
           </StatChip>
-        </div>
       </div>
-    </Card>
+    </section>
   );
 }

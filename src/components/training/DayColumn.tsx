@@ -27,15 +27,17 @@ export function DayColumn({ dayOfWeek, date, workouts, statusOf, onToggle, onEdi
     <div
       ref={setNodeRef}
       className={cn(
-        "glass flex min-h-72 flex-col gap-2 rounded-2xl p-2 transition-colors",
+        "pane flex min-h-80 flex-col gap-2 p-2.5 transition-colors",
         today && "sky-tint ring-1 ring-sky-accent/60",
-        isOver && "bg-accent",
+        isOver && "ring-2 ring-sky-accent",
       )}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-baseline gap-1.5">
-          <span className={cn("text-sm font-semibold", today && "text-primary")}>{DAY_SHORT[dayOfWeek]}</span>
-          <span className="text-xs text-muted-foreground">{format(day, "MMM d")}</span>
+      <div className="flex items-start justify-between px-1 pt-1 pb-1">
+        <div>
+          <span className={cn("block text-xs font-semibold", today ? "text-foreground" : "text-muted-foreground")}>
+            {DAY_SHORT[dayOfWeek]}
+          </span>
+          <span className="display-num block text-[30px]">{format(day, "d")}</span>
         </div>
         <Button variant="ghost" size="icon-xs" onClick={() => onAdd(dayOfWeek)} aria-label={`Add workout on ${DAY_SHORT[dayOfWeek]}`}>
           <Plus className="size-3.5" />

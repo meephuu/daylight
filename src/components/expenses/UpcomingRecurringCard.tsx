@@ -1,3 +1,4 @@
+import { CategoryAvatar } from "@/components/expenses/CategoryAvatar";
 import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarClock } from "lucide-react";
@@ -45,12 +46,12 @@ export function UpcomingRecurringCard({ rules, monthKey, today, categoriesById }
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="divide-y">
+        <ul className="-mx-2 flex flex-col">
           {items.map(({ key, date, rule }) => {
             const category = categoriesById.get(rule.categoryId);
             return (
-              <li key={key} className="flex items-center gap-3 py-1.5">
-                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: category?.color ?? "#9CA3AF" }} aria-hidden="true" />
+              <li key={key} className="flex items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-foreground/[0.05]">
+                {category ? <CategoryAvatar category={category} className="size-9" /> : <span className="size-9 shrink-0 rounded-full bg-foreground/15" aria-hidden="true" />}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{rule.note || category?.name || "Recurring expense"}</span>
                   <span className="block text-xs text-muted-foreground">{format(parseISO(date), "EEE, MMM d")}</span>

@@ -1,3 +1,4 @@
+import { CategoryAvatar } from "@/components/expenses/CategoryAvatar";
 import { format, parseISO } from "date-fns";
 import { Check, Repeat, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,13 +41,13 @@ export function PendingExpensesCard({ pending, categoriesById, onConfirm, onEdit
         )}
       </CardHeader>
       <CardContent>
-        <ul className="divide-y">
+        <ul className="-mx-2 flex flex-col">
           {ordered.map((expense) => {
             const category = categoriesById.get(expense.categoryId);
             const name = category?.name ?? "Unknown category";
             return (
-              <li key={expense.id} className="flex items-center gap-3 py-1.5">
-                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: category?.color ?? "#9CA3AF" }} aria-hidden="true" />
+              <li key={expense.id} className="flex items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-foreground/[0.05]">
+                {category ? <CategoryAvatar category={category} className="size-9" /> : <span className="size-9 shrink-0 rounded-full bg-foreground/15" aria-hidden="true" />}
                 <button
                   type="button"
                   onClick={() => onEdit(expense)}

@@ -84,7 +84,7 @@ export function DayCell({ day, cursor, mode, entries, onAdd, onEdit, onShowDay }
       ref={setNodeRef}
       onClick={() => onAdd(date)}
       className={cn(
-        "flex cursor-pointer flex-col gap-1 border-r border-b border-foreground/[0.08] p-1.5 transition-colors hover:bg-foreground/[0.06] [&:nth-child(7n)]:border-r-0",
+        "flex cursor-pointer flex-col gap-1 border-r border-b border-foreground/[0.08] p-2 transition-colors hover:bg-foreground/[0.06] [&:nth-child(7n)]:border-r-0",
         mode === "month" ? "min-h-28" : "min-h-80",
         // Weekdays are a touch darker than Saturday and Sunday, so the weekend stands out.
         isWeekday && "bg-foreground/[0.025] dark:bg-black/[0.12]",
@@ -94,8 +94,8 @@ export function DayCell({ day, cursor, mode, entries, onAdd, onEdit, onShowDay }
     >
       <span
         className={cn(
-          "flex size-6 items-center justify-center self-end rounded-full text-xs",
-          isToday(day) && "bg-sky-accent font-semibold text-white shadow-[0_0_12px_1px_var(--sky-accent)] dark:text-[#0b1033]",
+          "flex size-8 items-center justify-center self-start rounded-full font-display text-[17px] font-semibold tracking-[-0.02em] tabular-nums",
+          isToday(day) && "bg-sky-accent text-white shadow-[0_2px_10px_-2px_var(--sky-accent)] dark:text-[#0b1033]",
         )}
       >
         {mode === "week" ? format(day, "d") : day.getDate()}
