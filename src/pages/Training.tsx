@@ -273,29 +273,29 @@ export default function TrainingPage() {
             <CardTitle>Recent weeks</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* One column per week, oldest on the left; the fill is the share of planned workouts done. */}
-            <ul className="flex items-end gap-3" aria-label="Workouts done per week">
-              {history.map((entry) => {
+            {/* One row per week, newest first; the bar is the share of planned workouts done. */}
+            <ul className="flex flex-col gap-3" aria-label="Workouts done per week">
+              {[...history].reverse().map((entry) => {
                 const fraction = entry.planned === 0 ? 0 : Math.min(1, entry.done / entry.planned);
                 const current = entry.weekStart === week.start;
                 return (
-                  <li key={entry.weekStart} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                    <span className="text-sm font-semibold tabular-nums">
-                      {entry.done}
-                      <span className="font-normal text-muted-foreground">/{entry.planned}</span>
+                  <li key={entry.weekStart} className="flex items-center gap-4 text-sm">
+                    <span className={cn("w-28 shrink-0", current ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                      {weekLabel(entry.weekStart)}
                     </span>
                     <div
-                      className="relative flex h-32 w-full max-w-16 items-end overflow-hidden rounded-2xl bg-foreground/[0.07]"
+                      className="h-2.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.08]"
                       role="img"
                       aria-label={`Week of ${weekLabel(entry.weekStart)}: ${entry.done} of ${entry.planned}`}
                     >
                       <div
-                        className={cn("w-full rounded-2xl transition-[height] duration-500", current ? "bg-sky-accent" : "bg-[var(--series-1)]")}
-                        style={{ height: `${fraction * 100}%` }}
+                        className={cn("h-full rounded-full transition-[width] duration-500", current ? "bg-sky-accent" : "bg-[var(--series-1)]")}
+                        style={{ width: `${fraction * 100}%` }}
                       />
                     </div>
-                    <span className={cn("truncate text-xs", current ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                      {weekLabel(entry.weekStart)}
+                    <span className="w-12 shrink-0 text-right font-semibold tabular-nums">
+                      {entry.done}
+                      <span className="font-normal text-muted-foreground">/{entry.planned}</span>
                     </span>
                   </li>
                 );

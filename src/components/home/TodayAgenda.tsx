@@ -113,7 +113,11 @@ export function TodayAgenda() {
           ))}
 
           {/* Blocks sit to the right of the hour labels; overlapping ones share the width. */}
-          <div className="absolute top-0 right-0 bottom-0 left-[52px]">
+          {/* Each lane is at most 220px wide, so a block reads as an entry, not a banner. */}
+          <div
+            className="absolute top-0 bottom-0 left-[52px]"
+            style={{ width: `min(calc(100% - 52px), ${timeline.lanes * 220}px)` }}
+          >
             {timeline.blocks.map((block) => {
               const { entry } = block;
               const range = formatTimeRange(entry.startTime, entry.endTime);
@@ -125,7 +129,7 @@ export function TodayAgenda() {
                 <div
                   key={entry.key}
                   className={cn(
-                    "absolute flex overflow-hidden rounded-2xl px-3 py-1.5 text-xs leading-tight shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]",
+                    "absolute flex overflow-hidden rounded-lg px-2.5 py-1.5 text-xs leading-tight shadow-[inset_0_1px_0_rgb(255_255_255/0.35)]",
                     tall ? "flex-col justify-start" : "items-center gap-2",
                     entry.done && "opacity-45",
                   )}
