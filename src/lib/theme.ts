@@ -1,19 +1,28 @@
 import { create } from "zustand";
+import { isReducedMotion } from "@/lib/motion";
 
-export type Theme = "system" | "light" | "dark";
+/**
+ * "black" is the dark theme on a plain, still black background (like Daylight 1.0): no sky, no sun,
+ * no stars. It sets both the `dark` and `black` classes, so every dark style applies and `.black`
+ * only overrides the colours.
+ */
+export type Theme = "system" | "light" | "dark" | "black";
 
 const STORAGE_KEY = "theme";
 
 function readStoredTheme(): Theme {
   const value = localStorage.getItem(STORAGE_KEY);
-  return value === "light" || value === "dark" ? value : "system";
+  return value === "light" || value === "dark" || value === "black" ? value : "system";
 }
 
 export function applyTheme(theme: Theme): void {
   const dark =
     theme === "dark" ||
+    theme === "black" ||
     (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  document.documentElement.classList.toggle("dark", dark);
+  const root = document.documentElement;
+  root.classList.toggle("dark", dark);
+  root.classList.toggle("black", theme === "black");
 }
 
 interface ThemeState {
@@ -25,8 +34,13 @@ export const useTheme = create<ThemeState>((set) => ({
   theme: readStoredTheme(),
   setTheme: (theme) => {
     localStorage.setItem(STORAGE_KEY, theme);
-    applyTheme(theme);
-    set({ theme });
+    const apply = () => {
+      applyTheme(theme);
+      set({ theme });
+    };
+    // Cross-fade the whole window from the old look to the new one, instead of a hard flip.
+    if (!isReducedMotion() && typeof document.startViewTransition === "function") document.startViewTransition(apply);
+    else apply();
   },
 }));
 

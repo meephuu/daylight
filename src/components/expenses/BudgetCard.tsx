@@ -52,19 +52,19 @@ export function BudgetCard({ monthKey, today, spentSatang, budgetSatang, confirm
 
   return (
     // The month's total, set large on the sky, with the budget under it and the facts beside it.
-    <section className="grid gap-x-10 gap-y-6 px-1 pt-1 pb-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" aria-label={`Spent in ${monthLabel}`}>
-      <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
+    <section className="flex flex-col gap-7 px-1 pt-1 pb-3" aria-label={`Spent in ${monthLabel}`}>
+      <div className="flex max-w-3xl min-w-0 flex-col gap-4">
+        <div>
+          <div className="flex items-center gap-3">
             <p className="text-sm font-medium text-foreground/75">Spent in {monthLabel}</p>
-            <p className="display-num mt-2 text-[72px]">{formatTHB(spentSatang)}</p>
+            {!editing && (
+              <Button variant="ghost" size="xs" onClick={() => setEditing(true)}>
+                <Pencil className="size-3" />
+                {budgetSatang === null ? "Set budget" : "Edit budget"}
+              </Button>
+            )}
           </div>
-          {!editing && (
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-              <Pencil className="size-3.5" />
-              {budgetSatang === null ? "Set budget" : "Edit budget"}
-            </Button>
-          )}
+          <p className="display-num mt-2 text-[72px]">{formatTHB(spentSatang)}</p>
         </div>
 
         {editing ? (
@@ -76,7 +76,7 @@ export function BudgetCard({ monthKey, today, spentSatang, budgetSatang, confirm
         )}
       </div>
 
-      <div className="grid content-end gap-x-6 gap-y-5 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+      <div className="grid max-w-5xl gap-x-6 gap-y-5 sm:grid-cols-3">
           {budgetSatang !== null && safe !== null && (
             <Stat
               label="Safe to spend per day"
@@ -87,7 +87,7 @@ export function BudgetCard({ monthKey, today, spentSatang, budgetSatang, confirm
           )}
           {comparison && (
             <Stat
-              label={`vs ${previousLabel}`}
+              label={comparison.deltaSatang === 0 ? `vs ${previousLabel}` : `${comparison.deltaSatang > 0 ? "More" : "Less"} than ${previousLabel}`}
               detail={
                 (comparison.percent !== null && comparison.deltaSatang !== 0
                   ? `${comparison.percent > 0 ? "+" : ""}${comparison.percent}% · `
@@ -106,7 +106,6 @@ export function BudgetCard({ monthKey, today, spentSatang, budgetSatang, confirm
                 <span className="inline-flex items-center gap-1">
                   {comparison.deltaSatang > 0 ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}
                   {formatTHB(Math.abs(comparison.deltaSatang))}
-                  <span className="text-sm font-normal text-muted-foreground">{comparison.deltaSatang > 0 ? "more" : "less"}</span>
                 </span>
               )}
             </Stat>

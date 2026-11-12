@@ -27,9 +27,10 @@ export function DayColumn({ dayOfWeek, date, workouts, statusOf, onToggle, onEdi
     <div
       ref={setNodeRef}
       className={cn(
-        "pane flex min-h-80 flex-col gap-2 p-2.5 transition-colors",
-        today && "sky-tint ring-1 ring-sky-accent/60",
-        isOver && "ring-2 ring-sky-accent",
+        "pane flex min-h-60 flex-col gap-2 p-2.5 transition-colors",
+        // Inset: the week row scrolls sideways and would clip an outline drawn outside the box.
+        today && "ring-2 ring-sky-accent/70 ring-inset",
+        isOver && "ring-2 ring-sky-accent ring-inset",
       )}
     >
       <div className="flex items-start justify-between px-1 pt-1 pb-1">

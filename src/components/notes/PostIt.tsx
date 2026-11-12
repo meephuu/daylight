@@ -37,6 +37,12 @@ interface PostItProps {
   needsRaise: boolean;
   /** Search is active and this note does not match. */
   dimmed: boolean;
+  /** Part of the board's box selection. */
+  selected?: boolean;
+  /** While another selected note is dragged, this one follows by the same offset. */
+  groupOffset?: { x: number; y: number } | null;
+  /** Just created: it lands on the board with a small drop. */
+  fresh?: boolean;
 }
 
 interface ResizeState {
@@ -46,8 +52,10 @@ interface ResizeState {
   startHeight: number;
 }
 
-export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
+export function PostIt({ note, needsRaise, dimmed, selected = false, groupOffset = null, fresh = false }: PostItProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: note.id });
+  // Fixed at mount, so a re-render right after creation cannot cut the landing short.
+  const [landing] = useState(fresh);
 
   const updateText = useUpdateNoteText();
   const setColor = useSetNoteColor();
@@ -196,6 +204,9 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
     ? "rounded p-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] hover:bg-black/40 disabled:opacity-40"
     : "rounded p-1 hover:bg-black/10 disabled:opacity-40";
   const iconSize = "size-3.5";
+  // Its own drag wins; otherwise it rides along with the selected note being dragged.
+  const offset = transform ?? groupOffset;
+  const moving = isDragging || groupOffset !== null;
 
   return (
     <div
@@ -204,7 +215,9 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
       className={cn(
         "absolute flex flex-col rounded-sm shadow-md transition-opacity",
         isImage && "cursor-grab touch-none overflow-hidden bg-card active:cursor-grabbing",
-        isDragging && "shadow-xl",
+        moving && "shadow-xl",
+        landing && "note-drop",
+        selected && "outline-2 outline-offset-2 outline-ring",
         dimmed && "opacity-25",
       )}
       style={{
@@ -214,8 +227,8 @@ export function PostIt({ note, needsRaise, dimmed }: PostItProps) {
         height,
         backgroundColor: isImage ? undefined : note.color,
         color: isImage ? undefined : textColor,
-        zIndex: isDragging ? DRAGGING_Z : noteZIndex(note) + (paletteOpen ? 1000 : 0),
-        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        zIndex: isDragging ? DRAGGING_Z : groupOffset ? DRAGGING_Z - 1 : noteZIndex(note) + (paletteOpen ? 1000 : 0),
+        transform: offset ? `translate3d(${offset.x}px, ${offset.y}px, 0)` : undefined,
       }}
       {...(isImage ? { ...listeners, ...attributes } : {})}
     >

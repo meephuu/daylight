@@ -30,7 +30,7 @@ A private, offline, single-user dashboard whose background follows the actual ti
 ## Capabilities and Constraints
 
 - Pages: Home, Tasks, Calendar, Notes, Habits, Training, Expenses, Weekly review, Settings.
-- Daylight 2.0 is a separate app (own identifier and data folder) so it runs alongside the original; it starts from a one-time copy of the owner's real database. The original app and its data must never be modified.
+- Since 2026-11-12 the redesign is the installed Daylight: release builds upgrade the original app in place (same identifier, same real data); dev builds use a separate identifier and a test copy of the data. The real data must never be lost: back it up before every install.
 - UI redesign only: database schema, queries, and features stay as they are.
 - Existing stack: React 18, Tailwind 4, shadcn/Base UI primitives, lucide icons, Recharts, dnd-kit, Geist + Prompt (Thai) fonts bundled offline.
 

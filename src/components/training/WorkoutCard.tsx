@@ -35,8 +35,8 @@ export function WorkoutCardBody({
   return (
     <div
       className={cn(
-        "glass-well flex items-start gap-2 rounded-lg p-2 text-left shadow-[inset_0_0_0_1px_var(--glass-rim)] transition-colors hover:bg-foreground/[0.08]",
-        done && "opacity-60",
+        "flex items-start gap-2.5 rounded-xl bg-foreground/[0.07] p-2.5 text-left shadow-[inset_0_1px_0_var(--glass-edge)] transition-colors hover:bg-foreground/[0.11]",
+        done && "bg-success/10",
         className,
       )}
     >
@@ -50,7 +50,7 @@ export function WorkoutCardBody({
         className="mt-0.5"
       />
       <div className="min-w-0 flex-1">
-        <p className={cn("truncate text-sm font-medium", done && "line-through")}>{workout.title}</p>
+        <p className={cn("truncate text-sm font-semibold", done && "text-foreground/60 line-through")}>{workout.title}</p>
         {time && (
           <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="size-3 shrink-0" />

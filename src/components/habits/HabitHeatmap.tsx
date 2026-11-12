@@ -75,7 +75,7 @@ export function HabitHeatmap({ habit, countsByDate }: HabitHeatmapProps) {
 
   return (
     <div ref={ref} className="flex gap-2 overflow-x-auto pb-1">
-      <div className="flex flex-col gap-[3px] pt-4 text-[10px] leading-3 text-muted-foreground">
+      <div className="flex flex-col gap-[3px] pt-4 text-[10px] leading-3 text-muted-foreground/70">
         {WEEKDAY_ROW_LABELS.map((label, index) => (
           <span key={index} className="h-3">
             {label}
@@ -85,7 +85,7 @@ export function HabitHeatmap({ habit, countsByDate }: HabitHeatmapProps) {
       <div className="flex gap-[3px]">
         {weeks.map((week, w) => (
           <div key={w} className="flex flex-col gap-[3px]">
-            <span className="h-3 text-[10px] leading-3 text-muted-foreground">{monthLabels[w]}</span>
+            <span className="h-3 text-[10px] leading-3 text-muted-foreground/70">{monthLabels[w]}</span>
             {week.map((day) => {
               if (day.future) return <span key={day.date} className="size-3" />;
               const count = countsByDate.get(day.date) ?? 0;

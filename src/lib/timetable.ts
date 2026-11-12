@@ -8,7 +8,7 @@ import type { ScheduleEntry } from "@/lib/schedule";
  */
 export const MIN_BLOCK_MINUTES = 60;
 
-const DEFAULT_START_HOUR = 7;
+const DEFAULT_START_HOUR = 6;
 const DEFAULT_END_HOUR = 22;
 
 export interface TimelineBlock {

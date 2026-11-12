@@ -2,6 +2,11 @@
 const VISIBLE_MS = 700;
 /** How long the slow fade takes. */
 const FADE_MS = 1100;
+/**
+ * A scroll counts as the user's only this soon after their own wheel, key, pointer or touch input.
+ * Scrolls the app makes by itself (an agenda opening on the current hour) never show a bar.
+ */
+const INPUT_WINDOW_MS = 1000;
 
 interface FadeState {
   timer: number | undefined;
@@ -16,6 +21,13 @@ interface FadeState {
  */
 export function initScrollbarFade(): void {
   const states = new WeakMap<Element, FadeState>();
+  let lastInput = -Infinity;
+  const noteInput = () => {
+    lastInput = performance.now();
+  };
+  for (const type of ["wheel", "keydown", "pointerdown", "touchstart"]) {
+    document.addEventListener(type, noteInput, { capture: true, passive: true });
+  }
 
   function stateOf(element: Element): FadeState {
     let state = states.get(element);
@@ -32,6 +44,7 @@ export function initScrollbarFade(): void {
       const progress = Math.min(1, (now - startedAt) / FADE_MS);
       if (progress >= 1) {
         element.style.removeProperty("--sb-alpha");
+        delete element.dataset.sb;
         state.frame = undefined;
         return;
       }
@@ -44,12 +57,15 @@ export function initScrollbarFade(): void {
   document.addEventListener(
     "scroll",
     (event) => {
+      if (performance.now() - lastInput > INPUT_WINDOW_MS) return;
       const target = event.target;
       const element = target instanceof HTMLElement ? target : document.documentElement;
       const state = stateOf(element);
       window.clearTimeout(state.timer);
       if (state.frame !== undefined) window.cancelAnimationFrame(state.frame);
       state.frame = undefined;
+      // Only this element shows its bar; the marker keeps the inherited variable from lighting up others.
+      element.dataset.sb = "";
       element.style.setProperty("--sb-alpha", "1");
       state.timer = window.setTimeout(() => fadeOut(element, state), VISIBLE_MS);
     },

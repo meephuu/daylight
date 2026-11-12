@@ -4,9 +4,13 @@ import App from "./App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { getDb } from "@/lib/db/client";
 import { initScrollbarFade } from "@/lib/scrollbars";
+import { initDisplayFont } from "@/lib/font";
+import { initMotion } from "@/lib/motion";
 import { initTheme } from "@/lib/theme";
 import "./index.css";
 
+initDisplayFont();
+initMotion();
 initTheme();
 initScrollbarFade();
 // Open the DB at startup so migrations run immediately and failures surface in the console.

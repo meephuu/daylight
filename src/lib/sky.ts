@@ -107,7 +107,8 @@ const PHASES: Phase[] = [
     name: "Night",
     at: (sun) => sun.noon - 12 * 60, // solar midnight
     stars: 1,
-    dark: { top: "#03061a", mid: "#0a1236", bottom: "#161b4d", glow: "#3a4bb8", glowX: 80, glowY: 8, glowOpacity: 0.18, accent: "#8ea2ff" },
+    // A real night: near-black navy overhead, lifting toward the horizon, where the city's glow sits low and warm.
+    dark: { top: "#02030c", mid: "#060a1e", bottom: "#141830", glow: "#4a3d55", glowX: 50, glowY: 118, glowOpacity: 0.42, accent: "#8ea2ff" },
     light: { top: "#3d4b8c", mid: "#6c74ad", bottom: "#a7a8d2", glow: "#c9d0ff", glowX: 80, glowY: 8, glowOpacity: 0.35, accent: "#5a63c9" },
   },
   {
@@ -170,7 +171,8 @@ const PHASES: Phase[] = [
     name: "Evening",
     at: (sun) => sun.sunset + 120,
     stars: 1,
-    dark: { top: "#050a24", mid: "#0e1640", bottom: "#231f5c", glow: "#5a4bd0", glowX: 85, glowY: 100, glowOpacity: 0.16, accent: "#a08cff" },
+    // Twilight has gone: the sky is nearly night, with a last blue-violet trace low in the west.
+    dark: { top: "#03061a", mid: "#0a1030", bottom: "#1c1d45", glow: "#4b3f7a", glowX: 82, glowY: 112, glowOpacity: 0.3, accent: "#a08cff" },
     light: { top: "#414c90", mid: "#7276b5", bottom: "#b1a8d6", glow: "#c9c0ff", glowX: 85, glowY: 100, glowOpacity: 0.35, accent: "#6a55d0" },
   },
 ];

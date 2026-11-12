@@ -35,7 +35,7 @@ export function TaskItem({ task, project, onToggle, onEdit, onDelete }: TaskItem
       <button type="button" onClick={() => onEdit(task)} className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left outline-none focus-visible:underline">
         <span className="flex max-w-full items-center gap-2">
           {flag && <Flag className={cn("size-3.5 shrink-0", flag)} aria-label={`${task.priority} priority`} />}
-          <span className={cn("truncate text-[15px] font-medium", done && "text-muted-foreground line-through")}>{task.title}</span>
+          <span className={cn("strike truncate text-[15px] font-medium", done && "strike-on text-muted-foreground")}>{task.title}</span>
           {task.status === "doing" && (
             <span className="shrink-0 rounded-full bg-sky-accent/20 px-2 py-0.5 text-[11px] font-semibold text-foreground">In progress</span>
           )}

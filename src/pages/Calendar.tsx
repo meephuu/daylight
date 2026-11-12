@@ -12,11 +12,12 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { CalendarItemFormDialog } from "@/components/calendar/CalendarItemFormDialog";
 import { DayCell } from "@/components/calendar/DayCell";
+import { DayView } from "@/components/calendar/DayView";
 import { EntryChip } from "@/components/calendar/EntryChip";
 import { TaskFormDialog } from "@/components/TaskFormDialog";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/Segmented";
 import { useCalendarItems, useMoveCalendarItem, useOccurrenceStates } from "@/hooks/useCalendarItems";
 import { useProjects } from "@/hooks/useProjects";
 import { useSetTaskDueDate, useTasks } from "@/hooks/useTasks";
@@ -25,6 +26,7 @@ import {
   formatRangeTitle,
   getVisibleDays,
   shiftCursor,
+  weekOf,
   WEEKDAY_LABELS,
   type CalendarMode,
 } from "@/lib/calendar";
@@ -66,9 +68,11 @@ export default function CalendarPage() {
   );
 
   const days = useMemo(() => getVisibleDays(mode, cursor), [mode, cursor]);
+  // The Day view also needs the rest of its week, for the strip that moves between days.
+  const entryDays = useMemo(() => (mode === "day" ? weekOf(cursor) : days), [mode, cursor, days]);
   const entries = useMemo(
-    () => entriesByDate(days.map(toDateString), tasks, items, states, projectColors),
-    [days, tasks, items, states, projectColors],
+    () => entriesByDate(entryDays.map(toDateString), tasks, items, states, projectColors),
+    [entryDays, tasks, items, states, projectColors],
   );
 
   // A small movement threshold keeps plain clicks on a chip from starting a drag.
@@ -104,40 +108,38 @@ export default function CalendarPage() {
 
   // The page summary counts what falls in the month (or week) being shown.
   const inRange = useMemo(() => {
-    const keys = days.filter((day) => mode === "week" || day.getMonth() === cursor.getMonth()).map(toDateString);
+    const keys = days.filter((day) => mode !== "month" || day.getMonth() === cursor.getMonth()).map(toDateString);
     return keys.flatMap((key) => entries.get(key) ?? []);
   }, [days, entries, mode, cursor]);
   const visibleCount = inRange.length;
   const openTasks = inRange.filter((entry) => entry.kind === "task" && !entry.done).length;
 
+  /** "+N more" in a busy month cell opens that day in full. */
   function showDay(day: Date) {
     setCursor(day);
-    setMode("week");
+    setMode("day");
   }
+
+  const span = mode === "day" ? (toDateString(cursor) === todayString() ? "today" : "on this day") : `this ${mode}`;
 
   return (
     <div className="mx-auto flex max-w-[1480px] flex-col gap-4">
       <PageHeader
         title={formatRangeTitle(mode, days, cursor)}
-        summary={`${visibleCount} ${visibleCount === 1 ? "thing" : "things"} this ${mode}${openTasks > 0 ? ` · ${openTasks} open ${openTasks === 1 ? "task" : "tasks"}` : ""}`}
+        summary={`${visibleCount} ${visibleCount === 1 ? "thing" : "things"} ${span}${openTasks > 0 ? ` · ${openTasks} open ${openTasks === 1 ? "task" : "tasks"}` : ""}`}
         actions={
           <>
-            {(["month", "week"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={mode === value}
-                onClick={() => setMode(value)}
-                className={cn(
-                  "h-9 rounded-full px-4 text-sm font-medium capitalize transition-colors",
-                  mode === value
-                    ? "bg-white/85 text-foreground shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.16]"
-                    : "text-foreground/70 hover:text-foreground",
-                )}
-              >
-                {value}
-              </button>
-            ))}
+            <Segmented
+              aria-label="Calendar view"
+              track={false}
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: "month", label: "Month" },
+                { value: "week", label: "Week" },
+                { value: "day", label: "Day" },
+              ]}
+            />
             <span className="mx-1 h-5 w-px bg-foreground/15" aria-hidden="true" />
             <Button variant="ghost" size="icon" onClick={() => setCursor(shiftCursor(mode, cursor, -1))} aria-label={`Previous ${mode}`}>
               <ChevronLeft className="size-4" />
@@ -148,7 +150,7 @@ export default function CalendarPage() {
             <Button variant="ghost" size="icon" onClick={() => setCursor(shiftCursor(mode, cursor, 1))} aria-label={`Next ${mode}`}>
               <ChevronRight className="size-4" />
             </Button>
-            <Button onClick={() => setChooserDate(todayString())} className="ml-1">
+            <Button onClick={() => setChooserDate(mode === "day" ? toDateString(cursor) : todayString())} className="ml-1">
               <Plus className="size-4" />
               Add
             </Button>
@@ -168,6 +170,9 @@ export default function CalendarPage() {
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDragging(null)}
       >
+        {mode === "day" ? (
+          <DayView day={cursor} entriesByDate={entries} onPickDay={setCursor} onAdd={setChooserDate} onEdit={handleEdit} />
+        ) : (
         <div className="pane overflow-hidden">
           <div className="grid grid-cols-7">
             {WEEKDAY_LABELS.map((label) => (
@@ -192,6 +197,7 @@ export default function CalendarPage() {
             ))}
           </div>
         </div>
+        )}
         <DragOverlay>
           {dragging && <EntryChip entry={dragging} className="cursor-grabbing shadow-lg" />}
         </DragOverlay>

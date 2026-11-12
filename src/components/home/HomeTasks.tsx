@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Segmented } from "@/components/Segmented";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatDueDateTime, isOverdue } from "@/lib/dates";
 import type { Project } from "@/lib/db/projects";
@@ -63,26 +64,14 @@ export function HomeTasks({ overdue, today, upcoming, upcomingDays, projectsById
         <h2 id="home-tasks-title" className="font-display text-[19px] leading-tight font-semibold tracking-[-0.02em]">
           Tasks
         </h2>
-        <div role="tablist" aria-label="Which tasks" className="glass-well flex rounded-full p-0.5 shadow-[inset_0_0_0_1px_var(--glass-rim)]">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="tab"
-              aria-selected={view === option.value}
-              onClick={() => setView(option.value)}
-              className={cn(
-                "flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
-                view === option.value
-                  ? "bg-white/85 text-foreground shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.16]"
-                  : "text-foreground/70 hover:text-foreground",
-              )}
-            >
-              {option.label}
-              <span className="tabular-nums opacity-70">{option.count}</span>
-            </button>
-          ))}
-        </div>
+        <Segmented
+          aria-label="Which tasks"
+          semantics="tabs"
+          size="sm"
+          value={view}
+          onChange={setView}
+          options={options.map((option) => ({ value: option.value, label: option.label, meta: option.count }))}
+        />
       </div>
 
       {view === "due" && overdue.length > 0 && (
@@ -93,11 +82,11 @@ export function HomeTasks({ overdue, today, upcoming, upcomingDays, projectsById
       )}
 
       {list.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
+        <p key={view} className="fade-in py-6 text-center text-sm text-muted-foreground">
           {view === "due" ? "Nothing due today." : `Nothing due in the next ${upcomingDays} days.`}
         </p>
       ) : (
-        <ul className="-mx-1 flex flex-col">
+        <ul key={view} className="fade-in -mx-1 flex flex-col">
           {shown.map((task) => (
             <TaskRow key={task.id} task={task} project={task.projectId === null ? undefined : projectsById.get(task.projectId)} onComplete={onComplete} />
           ))}

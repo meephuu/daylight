@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragMoveEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import { ImagePlus, Plus, Search } from "lucide-react";
 import { ColorSwatches } from "@/components/ColorSwatches";
 import { PostIt } from "@/components/notes/PostIt";
@@ -16,6 +24,16 @@ const MIN_BOARD_WIDTH = 1600;
 const MIN_BOARD_HEIGHT = 1000;
 /** Free space kept to the right of / below the furthest note so the board can always grow. */
 const BOARD_MARGIN = 320;
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+/** True while the user is typing somewhere, so board shortcuts (Space, Escape) leave the keys alone. */
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.matches("input, textarea, select, [contenteditable='true']");
+}
 
 function readStoredColor(): string {
   try {
@@ -47,8 +65,25 @@ export default function NotesPage() {
   // and without this the note would flash back to its old spot for one frame in between.
   const [dropped, setDropped] = useState<Record<number, { x: number; y: number }>>({});
 
+  // Box selection: drag on empty board space to select every note the box touches, then drag any
+  // selected note to move them all together.
+  const [selected, setSelected] = useState<Set<number>>(() => new Set());
+  const marqueeStart = useRef<{ origin: Point; base: Set<number> } | null>(null);
+  const [marquee, setMarquee] = useState<{ from: Point; to: Point } | null>(null);
+  /** How far the dragged group has moved so far; the other selected notes follow by this much. */
+  const [groupDelta, setGroupDelta] = useState<Point | null>(null);
+  /** Holding Space turns a drag on the board into panning. */
+  const [spaceHeld, setSpaceHeld] = useState(false);
+
   const notes = useMemo(() => notesQuery.data ?? [], [notesQuery.data]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  // Notes that were on the board when the page opened. Anything added after that lands with a small drop.
+  const knownIds = useRef<Set<number> | null>(null);
+  if (knownIds.current === null && notesQuery.data) knownIds.current = new Set(notesQuery.data.map((note) => note.id));
+  useEffect(() => {
+    if (knownIds.current) for (const note of notes) knownIds.current.add(note.id);
+  }, [notes]);
 
   const topZ = useMemo(() => notes.reduce((max, note) => Math.max(max, note.zIndex), 0), [notes]);
   const boardSize = useMemo(
@@ -125,6 +160,36 @@ export default function NotesPage() {
     return () => window.removeEventListener("paste", onPaste);
   }, []);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (isTyping(event.target)) return;
+      if (event.key === " ") {
+        event.preventDefault();
+        setSpaceHeld(true);
+      } else if (event.key === "Escape") {
+        setSelected(new Set());
+      }
+    }
+    function onKeyUp(event: KeyboardEvent) {
+      if (event.key === " ") setSpaceHeld(false);
+    }
+    const release = () => setSpaceHeld(false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", release);
+    };
+  }, []);
+
+  /** A pointer position in board coordinates (the board's own top-left is 0,0, whatever the scroll). */
+  function boardPoint(event: ReactPointerEvent): Point {
+    const rect = boardRef.current?.getBoundingClientRect();
+    return { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) };
+  }
+
   function handleBoardDoubleClick(event: MouseEvent<HTMLDivElement>) {
     // Pressing on the board captures the pointer for panning, which makes the browser deliver the click to the
     // scrolling container instead of whatever is under the pointer. So look at what is really there: only empty
@@ -140,61 +205,115 @@ export default function NotesPage() {
     });
   }
 
-  /** Grab empty board space and drag to pan, like a map. Notes and the scrollbar are unaffected. */
-  function handlePanStart(event: ReactPointerEvent<HTMLDivElement>) {
+  /**
+   * Pressing on empty board space: with Space held (or the middle button) it pans like a map; otherwise it
+   * starts a selection box. Notes and the scrollbar are unaffected.
+   */
+  function handleBoardPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     const scroll = event.currentTarget;
     const target = event.target as HTMLElement;
-    if (event.button !== 0 || !target.dataset.boardSurface) return;
+    if (!target.dataset.boardSurface) return;
     const rect = scroll.getBoundingClientRect();
     const onScrollbar =
       event.clientX - rect.left >= scroll.clientWidth || event.clientY - rect.top >= scroll.clientHeight;
     if (onScrollbar) return;
 
+    const pan = event.button === 1 || (event.button === 0 && spaceHeld);
+    if (!pan && event.button !== 0) return;
+    event.preventDefault();
     scroll.setPointerCapture(event.pointerId);
-    panStart.current = {
-      pointerX: event.clientX,
-      pointerY: event.clientY,
-      scrollLeft: scroll.scrollLeft,
-      scrollTop: scroll.scrollTop,
-    };
-    setPanning(true);
+
+    if (pan) {
+      panStart.current = {
+        pointerX: event.clientX,
+        pointerY: event.clientY,
+        scrollLeft: scroll.scrollLeft,
+        scrollTop: scroll.scrollTop,
+      };
+      setPanning(true);
+      return;
+    }
+
+    // Shift or Ctrl adds to the current selection; a plain press starts over (a plain click clears it).
+    const base = event.shiftKey || event.ctrlKey || event.metaKey ? new Set(selected) : new Set<number>();
+    const origin = boardPoint(event);
+    marqueeStart.current = { origin, base };
+    setMarquee({ from: origin, to: origin });
+    setSelected(base);
   }
 
-  function handlePanMove(event: ReactPointerEvent<HTMLDivElement>) {
+  function handleBoardPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     const start = panStart.current;
-    if (!start) return;
-    event.currentTarget.scrollLeft = start.scrollLeft - (event.clientX - start.pointerX);
-    event.currentTarget.scrollTop = start.scrollTop - (event.clientY - start.pointerY);
+    if (start) {
+      event.currentTarget.scrollLeft = start.scrollLeft - (event.clientX - start.pointerX);
+      event.currentTarget.scrollTop = start.scrollTop - (event.clientY - start.pointerY);
+      return;
+    }
+    const box = marqueeStart.current;
+    if (!box) return;
+    const to = boardPoint(event);
+    const left = Math.min(box.origin.x, to.x);
+    const right = Math.max(box.origin.x, to.x);
+    const top = Math.min(box.origin.y, to.y);
+    const bottom = Math.max(box.origin.y, to.y);
+    const next = new Set(box.base);
+    for (const note of notes) {
+      const touches = note.x < right && note.x + note.width > left && note.y < bottom && note.y + note.height > top;
+      if (touches) next.add(note.id);
+    }
+    setMarquee({ from: box.origin, to });
+    setSelected(next);
   }
 
-  function handlePanEnd() {
+  function handleBoardPointerEnd() {
     panStart.current = null;
     setPanning(false);
+    marqueeStart.current = null;
+    setMarquee(null);
+  }
+
+  /** Grabbing a note outside the selection drops the selection, so only that note moves. */
+  function handleDragStart(event: DragStartEvent) {
+    if (!selected.has(Number(event.active.id)) && selected.size > 0) setSelected(new Set());
+  }
+
+  function handleDragMove(event: DragMoveEvent) {
+    if (selected.has(Number(event.active.id)) && selected.size > 1) {
+      setGroupDelta({ x: event.delta.x, y: event.delta.y });
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const note = notes.find((candidate) => candidate.id === event.active.id);
-    if (!note || (event.delta.x === 0 && event.delta.y === 0)) return;
-    const position = {
-      x: Math.max(0, Math.round(note.x + event.delta.x)),
-      y: Math.max(0, Math.round(note.y + event.delta.y)),
-    };
-    setDropped((current) => ({ ...current, [note.id]: position }));
-    moveNote.mutate(
-      { id: note.id, ...position },
-      {
-        onSettled: () =>
-          setDropped((current) => {
-            const { [note.id]: _settled, ...rest } = current;
-            return rest;
-          }),
-      },
-    );
+    setGroupDelta(null);
+    const id = Number(event.active.id);
+    const moving = selected.has(id) && selected.size > 1 ? selected : new Set([id]);
+    const group = notes.filter((note) => moving.has(note.id));
+    if (group.length === 0 || (event.delta.x === 0 && event.delta.y === 0)) return;
+    // Clamp the move as one, so the group keeps its shape when it reaches the board's top or left edge.
+    const dx = Math.round(Math.max(event.delta.x, -Math.min(...group.map((note) => note.x))));
+    const dy = Math.round(Math.max(event.delta.y, -Math.min(...group.map((note) => note.y))));
+    if (dx === 0 && dy === 0) return;
+
+    const positions: Record<number, Point> = {};
+    for (const note of group) positions[note.id] = { x: note.x + dx, y: note.y + dy };
+    setDropped((current) => ({ ...current, ...positions }));
+    for (const note of group) {
+      moveNote.mutate(
+        { id: note.id, x: note.x + dx, y: note.y + dy },
+        {
+          onSettled: () =>
+            setDropped((current) => {
+              const { [note.id]: _settled, ...rest } = current;
+              return rest;
+            }),
+        },
+      );
+    }
   }
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 px-1 pt-3">
+      <div data-settle className="flex flex-wrap items-end gap-x-6 gap-y-3 px-1 pt-3">
         <div className="mr-auto">
           <h1 className="font-display text-[44px] leading-none font-semibold tracking-[-0.035em]">Notes</h1>
           <p className="mt-2.5 text-[15px] text-foreground/80">
@@ -233,16 +352,24 @@ export default function NotesPage() {
       <div
         ref={scrollRef}
         data-board-surface
+        data-settle
         onDoubleClick={handleBoardDoubleClick}
-        onPointerDown={handlePanStart}
-        onPointerMove={handlePanMove}
-        onPointerUp={handlePanEnd}
-        onPointerCancel={handlePanEnd}
+        onPointerDown={handleBoardPointerDown}
+        onPointerMove={handleBoardPointerMove}
+        onPointerUp={handleBoardPointerEnd}
+        onPointerCancel={handleBoardPointerEnd}
         className={`no-scrollbar isolate min-h-0 flex-1 overflow-auto rounded-[26px] bg-foreground/[0.04] shadow-[inset_0_0_0_1px_var(--glass-rim)] dark:bg-black/[0.12] ${
-          panning ? "cursor-grabbing" : "cursor-grab"
+          panning ? "cursor-grabbing" : spaceHeld ? "cursor-grab" : "cursor-default"
         }`}
       >
-        <DndContext sensors={sensors} autoScroll={false} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          autoScroll={false}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setGroupDelta(null)}
+        >
           <div
             ref={boardRef}
             data-board-surface
@@ -260,8 +387,23 @@ export default function NotesPage() {
                 note={dropped[note.id] ? { ...note, ...dropped[note.id] } : note}
                 needsRaise={note.zIndex < topZ}
                 dimmed={searching && !noteMatches(note, query)}
+                selected={selected.has(note.id)}
+                fresh={knownIds.current !== null && !knownIds.current.has(note.id)}
+                groupOffset={groupDelta && selected.has(note.id) ? groupDelta : null}
               />
             ))}
+            {marquee && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute z-[2100000] rounded-md border border-ring bg-ring/15"
+                style={{
+                  left: Math.min(marquee.from.x, marquee.to.x),
+                  top: Math.min(marquee.from.y, marquee.to.y),
+                  width: Math.abs(marquee.to.x - marquee.from.x),
+                  height: Math.abs(marquee.to.y - marquee.from.y),
+                }}
+              />
+            )}
             {notes.length === 0 && !notesQuery.isPending && (
               <p className="pointer-events-none absolute top-10 left-10 text-sm text-muted-foreground">
                 Your board is empty. Click “New note”, double-click anywhere on the board, or paste a picture with Ctrl+V.
@@ -274,7 +416,9 @@ export default function NotesPage() {
       <p className="px-1 text-xs text-foreground/70">
         {searching
           ? `${matchCount} of ${notes.length} notes match. Others are faded.`
-          : "Drag empty space to pan around the board. Drag a note by its top bar to move it, the bottom-right corner to resize, and use the pin to keep a note on top. Paste a picture with Ctrl+V or use “Add picture”."}
+          : selected.size > 1
+            ? `${selected.size} notes selected. Drag any of them to move them together. Esc or a click on empty board clears the selection.`
+            : "Drag across empty board to select several notes, then drag one to move them all. Hold Space and drag (or drag with the middle button) to pan. Drag a note by its top bar to move it, the bottom-right corner to resize, and use the pin to keep a note on top. Paste a picture with Ctrl+V or use “Add picture”."}
       </p>
     </div>
   );

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { HorizontalBarChart, type BarDatum } from "@/components/charts/HorizontalBarChart";
 import { BudgetBar } from "@/components/expenses/BudgetBar";
+import { Segmented } from "@/components/Segmented";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CategoryBudgetRow, CategoryTotal } from "@/lib/expenses";
 import { formatCompactBaht, formatTHB } from "@/lib/money";
@@ -53,22 +54,16 @@ export function CategoryBreakdown({ data, budgets, selectedId, onSelect }: Categ
       <CardHeader>
         <CardTitle>Spending by category</CardTitle>
         <CardAction>
-          <div role="group" aria-label="Chart type" className="glass-well flex rounded-lg p-0.5 text-xs shadow-[inset_0_0_0_1px_var(--glass-rim)]">
-            {(["bars", "donut"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={view === option}
-                onClick={() => setView(option)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 capitalize outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                  view === option ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            aria-label="Chart type"
+            size="sm"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "bars", label: "Bars" },
+              { value: "donut", label: "Donut" },
+            ]}
+          />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">

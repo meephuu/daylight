@@ -42,22 +42,33 @@ function HabitToggle({ habit, streak, todayCount }: { habit: Habit; streak: Stre
         style={{ width: SIZE, height: SIZE }}
       >
         <svg width={SIZE} height={SIZE} className="absolute inset-0 -rotate-90" aria-hidden="true">
-          <circle cx={SIZE / 2} cy={SIZE / 2} r={r} fill={met ? habit.color : "transparent"} stroke={`color-mix(in srgb, ${habit.color} 28%, transparent)`} strokeWidth={STROKE} />
-          {!met && fraction > 0 && (
-            <circle
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={r}
-              fill="none"
-              stroke={habit.color}
-              strokeWidth={STROKE}
-              strokeLinecap="round"
-              strokeDasharray={`${circumference * fraction} ${circumference}`}
-            />
-          )}
+          <circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={r}
+            fill={met ? habit.color : "transparent"}
+            stroke={`color-mix(in srgb, ${habit.color} 28%, transparent)`}
+            strokeWidth={STROKE}
+            style={{ transition: "fill 260ms var(--ease-out)" }}
+          />
+          {/* Always drawn, so the ring grows smoothly from one step to the next (and closes into the fill). */}
+          <circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={r}
+            fill="none"
+            stroke={habit.color}
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            style={{
+              strokeDasharray: `${circumference * fraction} ${circumference}`,
+              opacity: fraction > 0 ? 1 : 0,
+              transition: "stroke-dasharray 420ms var(--ease-out), opacity 200ms",
+            }}
+          />
         </svg>
         <span className={cn("relative text-sm font-semibold tabular-nums", met ? "text-white drop-shadow-[0_1px_1px_rgb(0_0_0/0.3)]" : "text-foreground/85")}>
-          {met ? <Check className="size-6" strokeWidth={3} /> : single ? "" : `${progress}/${target}`}
+          {met ? <Check className="pop-in size-6" strokeWidth={3} /> : single ? "" : `${progress}/${target}`}
         </span>
       </button>
       {!single && todayCount > 0 && (

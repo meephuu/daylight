@@ -62,8 +62,10 @@ export function NextUpCard({ nextDeadline }: NextUpCardProps) {
 
       {lead ? (
         <div className="min-w-0">
-          <p className="display-num text-[56px]">
-            {current && lead.endTime ? `until ${lead.endTime}` : lead.startTime}
+          {/* The time leads; "until" is a quiet word beside it rather than part of the big number. */}
+          <p className="flex items-baseline gap-2">
+            {current && lead.endTime && <span className="text-base font-medium text-foreground/75">until</span>}
+            <span className="display-num text-[40px]">{current && lead.endTime ? lead.endTime : lead.startTime}</span>
           </p>
           <p className="mt-2 flex items-center gap-2 text-base font-medium">
             <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: lead.color }} />
@@ -75,7 +77,7 @@ export function NextUpCard({ nextDeadline }: NextUpCardProps) {
         // Today's timeline is done: the next deadline takes the lead instead.
         <div className="min-w-0">
           <p className="text-sm text-foreground/80">Today's timeline is clear. Next deadline</p>
-          <p className="display-num mt-2 text-[40px]">
+          <p className="display-num mt-2 text-[32px]">
             {formatDueDateTime(nextDeadline.dueDate, nextDeadline.dueTime)}
           </p>
           <p className="mt-1 line-clamp-2 text-base font-medium">{nextDeadline.title}</p>

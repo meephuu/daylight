@@ -7,6 +7,7 @@ import { TaskFormDialog } from "@/components/TaskFormDialog";
 import { TaskItem } from "@/components/TaskItem";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
+import { Segmented } from "@/components/Segmented";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useProjects } from "@/hooks/useProjects";
 import { useDeleteTask, useSetTaskStatus, useTasks } from "@/hooks/useTasks";
@@ -105,23 +106,18 @@ export default function TasksPage() {
         }
         actions={
           <>
-            {VIEWS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={view === value}
-                onClick={() => setView(value)}
-                className={cn(
-                  "flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors",
-                  view === value
-                    ? "bg-white/85 text-foreground shadow-[inset_0_1px_0_var(--glass-edge)] dark:bg-white/[0.16]"
-                    : "text-foreground/70 hover:text-foreground",
-                )}
-              >
-                {label}
-                <span className="text-xs tabular-nums opacity-70">{counts[value]}</span>
-              </button>
-            ))}
+            <Segmented
+              aria-label="Which tasks"
+              semantics="tabs"
+              track={false}
+              value={view}
+              onChange={setView}
+              options={VIEWS.map(({ value, label }) => ({
+                value,
+                label,
+                meta: <span className="text-xs">{counts[value]}</span>,
+              }))}
+            />
             <Button onClick={() => openForm(null)} className="ml-1">
               <Plus className="size-4" />
               New task

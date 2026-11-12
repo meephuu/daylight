@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToastStore, type Toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']") !== null;
@@ -12,12 +13,20 @@ function ToastItem({ toast }: { toast: Toast }) {
   const [paused, setPaused] = useState(false);
   const remaining = useRef(toast.durationMs);
   const startedAt = useRef(0);
+  // Leaving plays the exit animation first, then removes the toast.
+  const [leaving, setLeaving] = useState(false);
+  const leave = useRef(() => {});
+  leave.current = () => {
+    if (leaving) return;
+    setLeaving(true);
+    window.setTimeout(() => dismiss(toast.id), 160);
+  };
 
   // Counts down toast.durationMs, but only while the pointer or keyboard focus is not on the toast.
   useEffect(() => {
     if (paused) return;
     startedAt.current = Date.now();
-    const timer = window.setTimeout(() => dismiss(toast.id), remaining.current);
+    const timer = window.setTimeout(() => leave.current(), remaining.current);
     return () => {
       window.clearTimeout(timer);
       remaining.current = Math.max(1000, remaining.current - (Date.now() - startedAt.current));
@@ -26,7 +35,7 @@ function ToastItem({ toast }: { toast: Toast }) {
 
   function runAction() {
     toast.onAction?.();
-    dismiss(toast.id);
+    leave.current();
   }
 
   return (
@@ -36,7 +45,10 @@ function ToastItem({ toast }: { toast: Toast }) {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className="pointer-events-auto flex items-center gap-2 glass-strong rounded-xl py-2 pr-1.5 pl-3 text-sm text-popover-foreground"
+      className={cn(
+        "pointer-events-auto flex items-center gap-2 glass-strong rounded-xl py-2 pr-1.5 pl-3 text-sm text-popover-foreground",
+        leaving ? "toast-out" : "toast-in",
+      )}
     >
       <span className="min-w-0 flex-1 truncate">{toast.message}</span>
       {toast.actionLabel && (
@@ -45,7 +57,7 @@ function ToastItem({ toast }: { toast: Toast }) {
           <kbd className="ml-1 rounded border px-1 text-[10px] text-muted-foreground">Ctrl Z</kbd>
         </Button>
       )}
-      <Button size="icon-sm" variant="ghost" onClick={() => dismiss(toast.id)} aria-label="Dismiss">
+      <Button size="icon-sm" variant="ghost" onClick={() => leave.current()} aria-label="Dismiss">
         <X className="size-4" />
       </Button>
     </div>

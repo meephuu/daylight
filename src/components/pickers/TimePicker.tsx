@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Clock } from "lucide-react";
 import { PICKER_TRIGGER_CLASS } from "@/components/pickers/pickerStyles";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,10 @@ function centerInColumn(element: HTMLElement | null) {
   column.scrollTop = element.offsetTop - column.clientHeight / 2 + element.clientHeight / 2;
 }
 
+/** The list is drawn three times; the middle copy is the real one, the others make the loop seamless. */
+const COPIES = [0, 1, 2] as const;
+const MIDDLE = 1;
+
 interface ColumnProps {
   label: string;
   values: number[];
@@ -41,32 +45,71 @@ interface ColumnProps {
   onPick: (value: number) => void;
 }
 
+/**
+ * A scrolling column that loops: after the last value comes the first again (… 22, 23, 00, 01 …).
+ * Whenever the scroll drifts out of the middle copy, it jumps by exactly one copy's height, which
+ * looks identical, so the list never runs out in either direction.
+ */
 function Column({ label, values, selected, onPick }: ColumnProps) {
+  const columnRef = useRef<HTMLDivElement>(null);
+
+  // With nothing picked yet, start at the top of the middle copy (00).
+  useLayoutEffect(() => {
+    const column = columnRef.current;
+    if (column && selected === null) column.scrollTop = copyHeight(column, values.length);
+    // Only on opening; a later pick centres itself.
+  }, []);
+
+  function handleScroll() {
+    const column = columnRef.current;
+    if (!column) return;
+    const height = copyHeight(column, values.length);
+    if (height <= 0) return;
+    if (column.scrollTop < height * 0.5) column.scrollTop += height;
+    else if (column.scrollTop > height * 1.5) column.scrollTop -= height;
+  }
+
   return (
     <div className="flex flex-col items-center gap-1">
       <span className="text-[11px] text-muted-foreground">{label}</span>
-      <div className="relative flex h-48 w-14 flex-col gap-0.5 overflow-y-auto rounded-md border p-1">
-        {values.map((value) => {
-          const isSelected = value === selected;
-          return (
-            <button
-              key={value}
-              type="button"
-              ref={isSelected ? centerInColumn : undefined}
-              onClick={() => onPick(value)}
-              aria-pressed={isSelected}
-              className={cn(
-                "shrink-0 rounded-md py-1 text-sm tabular-nums transition-colors hover:bg-accent",
-                isSelected && "bg-primary font-semibold text-primary-foreground hover:bg-primary",
-              )}
-            >
-              {pad(value)}
-            </button>
-          );
-        })}
+      <div
+        ref={columnRef}
+        onScroll={handleScroll}
+        className="no-scrollbar relative flex h-48 w-14 flex-col gap-0.5 overflow-y-auto rounded-md border p-1"
+      >
+        {COPIES.map((copy) =>
+          values.map((value) => {
+            const isSelected = value === selected;
+            const real = copy === MIDDLE;
+            return (
+              <button
+                key={`${copy}-${value}`}
+                type="button"
+                ref={isSelected && real ? centerInColumn : undefined}
+                onClick={() => onPick(value)}
+                aria-pressed={real ? isSelected : undefined}
+                aria-hidden={real ? undefined : true}
+                tabIndex={real ? undefined : -1}
+                className={cn(
+                  "shrink-0 rounded-md py-1 text-sm tabular-nums transition-colors hover:bg-accent",
+                  isSelected && "bg-primary font-semibold text-primary-foreground hover:bg-primary",
+                )}
+              >
+                {pad(value)}
+              </button>
+            );
+          }),
+        )}
       </div>
     </div>
   );
+}
+
+/** Distance from one copy of the list to the next (the first item of copy 1 minus that of copy 0). */
+function copyHeight(column: HTMLElement, count: number): number {
+  const first = column.children[0] as HTMLElement | undefined;
+  const next = column.children[count] as HTMLElement | undefined;
+  return first && next ? next.offsetTop - first.offsetTop : 0;
 }
 
 /** Time field with scrolling hour and minute columns in the app's own style. */

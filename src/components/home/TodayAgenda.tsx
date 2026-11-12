@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 
 /** Vertical scale of the agenda. */
 const HOUR_PX = 48;
+/** Room above the first hour line, so its label (centred on the line) is never cut off. */
+const PAD_TOP = 14;
 
 /**
  * The day as a column of hours. Every block is exactly as tall as it lasts, side by side when things
@@ -31,7 +33,7 @@ export function TodayAgenda() {
   const untimed = entries.filter((entry) => entry.startTime === null);
   const hours: number[] = [];
   for (let hour = timeline.startHour; hour <= timeline.endHour; hour += 1) hours.push(hour);
-  const top = (minutes: number) => ((minutes - timeline.startHour * 60) / 60) * HOUR_PX;
+  const top = (minutes: number) => PAD_TOP + ((minutes - timeline.startHour * 60) / 60) * HOUR_PX;
   const height = (timeline.endHour - timeline.startHour) * HOUR_PX;
   const showNow = isToday && now >= timeline.startHour * 60 && now <= timeline.endHour * 60;
 
@@ -49,7 +51,9 @@ export function TodayAgenda() {
     else if (next) target = Math.min(top(now), top(next.startMin)) - 48;
     else if (last) target = top(last.startMin) - 48;
     else target = top(now) - 96;
-    element.scrollTo({ top: Math.max(0, target) });
+    // Land exactly on an hour, so the top label shows whole instead of sliced by the edge.
+    const snapped = Math.floor((target - PAD_TOP) / HOUR_PX) * HOUR_PX;
+    element.scrollTo({ top: Math.max(0, snapped) });
     // Only when the day changes, not every 30 s.
   }, [date]);
 
@@ -101,8 +105,13 @@ export function TodayAgenda() {
         </ul>
       )}
 
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-5" style={{ maxHeight: 520 }}>
-        <div className="relative" style={{ height: height + 12 }}>
+      {/* The top edge fades, so hours scrolling past melt away instead of being cut in half. */}
+      <div
+        ref={scrollRef}
+        className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-5 [mask-image:linear-gradient(to_bottom,transparent,black_6px)]"
+        style={{ maxHeight: 520 }}
+      >
+        <div className="relative" style={{ height: PAD_TOP + height + 12 }}>
           {hours.map((hour) => (
             <div key={hour} className="absolute right-0 left-0 flex items-start gap-3" style={{ top: top(hour * 60) }}>
               <span className="-mt-2 w-10 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums">

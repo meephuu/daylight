@@ -3,20 +3,24 @@
 @import "shadcn/tailwind.css";
 /*
  * Type, all bundled so it works offline:
- * - Bricolage Grotesque (display): page titles, the greeting, big numbers. Its optical-size axis keeps
- *   large settings tight and small ones open.
+ * - Display (page titles, the greeting, big numbers): Instrument Serif, a slim high-contrast serif, or
+ *   Sora, a soft geometric sans, chosen in Settings. See the display rules after the base layer.
  * - Onest (UI): everything you read and operate.
  * - Anuphan (Thai): the browser falls back to it for Thai characters in either voice.
  */
-@import "@fontsource-variable/bricolage-grotesque/opsz.css";
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource-variable/sora/wght.css";
 @import "@fontsource-variable/onest";
 @import "@fontsource-variable/anuphan";
 
 @custom-variant dark (&:is(.dark *));
+/* `motion-reduce:` follows the app's Animations setting (lib/motion.ts), not only Windows. */
+@custom-variant motion-reduce (&:where([data-motion="reduce"] *));
 
 @theme inline {
     --font-heading: var(--font-display);
-    --font-display: 'Bricolage Grotesque Variable', 'Anuphan Variable', sans-serif;
+    /* Switchable in Settings (lib/font.ts sets <html data-font>); see --display-family below. */
+    --font-display: var(--display-family);
     --font-sans: 'Onest Variable', 'Anuphan Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
@@ -189,6 +193,45 @@
     --series-8: #e95560;
 }
 
+/*
+ * Black theme: Daylight 1.0's plain dark look. Sits on top of `.dark` (both classes are set) and swaps
+ * the navy-tinted glass and ink for neutral greys over a still black window.
+ */
+.black {
+    --background: #0a0a0a;
+    --card: #171717;
+    --popover: rgb(23 23 23 / 0.96);
+    --primary: #ebebeb;
+    --primary-foreground: #171717;
+    --secondary: rgb(255 255 255 / 0.08);
+    --muted: rgb(255 255 255 / 0.07);
+    --muted-foreground: #a3a3a3;
+    --accent: rgb(255 255 255 / 0.09);
+    --foreground: #fafafa;
+    --card-foreground: #fafafa;
+    --popover-foreground: #fafafa;
+    --secondary-foreground: #fafafa;
+    --accent-foreground: #fafafa;
+    --border: rgb(255 255 255 / 0.1);
+    --input: rgb(255 255 255 / 0.15);
+    --ring: #7aa2ff;
+
+    --glass-fill: #171717;
+    --glass-fill-strong: rgb(23 23 23 / 0.96);
+    --glass-edge: rgb(255 255 255 / 0.06);
+    --glass-rim: rgb(255 255 255 / 0.08);
+    --glass-shadow: 0 8px 24px -14px rgb(0 0 0 / 0.7);
+    --glass-well: rgb(0 0 0 / 0.3);
+
+    --sidebar-foreground: #fafafa;
+    --sidebar-primary: #ebebeb;
+    --sidebar-primary-foreground: #171717;
+    --sidebar-accent: rgb(255 255 255 / 0.09);
+    --sidebar-accent-foreground: #fafafa;
+    --sidebar-border: rgb(255 255 255 / 0.1);
+    --sidebar-ring: #7aa2ff;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -214,6 +257,31 @@
   .font-display {
     font-optical-sizing: auto;
   }
+}
+
+/*
+ * The display face, chosen in Settings > Appearance (lib/font.ts writes <html data-font>).
+ *
+ * Sora (default) is a variable geometric sans: it takes the classes' semibold and tight tracking as they are.
+ *
+ * Instrument Serif has one weight and runs small and narrow next to a grotesk. Its rules sit
+ * outside every layer on purpose, so they beat the per-element Tailwind classes (font-semibold,
+ * tracking-[-0.035em]) without touching each page:
+ * - the real regular weight, never a faked bold (Thai, set in Anuphan, keeps its own weights);
+ * - font-size-adjust lifts it to a grotesk's x-height, so 19px titles and 44px headings keep their size;
+ * - near-neutral tracking: a serif needs room the tight grotesk did not.
+ */
+:root {
+  --display-family: 'Sora Variable', 'Anuphan Variable', sans-serif;
+}
+:root[data-font="instrument"] {
+  --display-family: 'Instrument Serif', 'Anuphan Variable', serif;
+}
+:root[data-font="instrument"] :is(.font-display, .display-num) {
+  font-weight: 400;
+  font-synthesis-weight: none;
+  font-size-adjust: ex-height 0.5;
+  letter-spacing: -0.005em;
 }
 
 /* Display numerals: the big numbers that anchor every page. Proportional figures, tight tracking. */
@@ -302,7 +370,9 @@
 
 /*
  * Scrollbars everywhere: a slim, rounded bar with no track and no arrow buttons, invisible at rest and
- * shown while something scrolls (lib/scrollbars.ts sets --sb-alpha and fades it out), or on hover.
+ * shown while that element scrolls, or on hover. lib/scrollbars.ts marks the scrolling element with
+ * [data-sb] and fades --sb-alpha on it. Only marked elements read --sb-alpha: the variable is inherited,
+ * so without the marker every scroll area inside a scrolling page would light up with it.
  */
 *::-webkit-scrollbar {
   width: 12px;
@@ -316,10 +386,13 @@
   display: none;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: rgb(var(--sb-thumb) / calc(0.55 * var(--sb-alpha, 0)));
+  background-color: transparent;
   background-clip: padding-box;
   border: 3px solid transparent;
   border-radius: 9999px;
+}
+[data-sb]::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--sb-thumb) / calc(0.55 * var(--sb-alpha, 0)));
 }
 *::-webkit-scrollbar-thumb:hover,
 *::-webkit-scrollbar-thumb:active {
@@ -339,65 +412,158 @@
   --sb-thumb: 255 255 255;
 }
 
-/* Night stars: each star twinkles (scale + opacity) and wanders a few pixels along its own path, each on its own timing. */
-@keyframes star-twinkle {
-  0%,
-  100% {
-    opacity: var(--star-min, 0.25);
-    transform: scale(0.7);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
-@keyframes star-wander {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  25% {
-    translate: var(--x1, 6px) var(--y1, 4px);
-  }
-  50% {
-    translate: var(--x2, -5px) var(--y2, 7px);
-  }
-  75% {
-    translate: var(--x3, 4px) var(--y3, -6px);
-  }
+/* ------------------------------------------------------------------ motion
+ * One language for the whole app: things arrive with a confident deceleration (ease-out-quint), small
+ * feedback is quick (150-250ms), and only the page entrance takes its time. Every keyframe below uses
+ * `backwards` fill, never `both`: once an animation ends it leaves no styles behind, so it can never
+ * fight a drag transform or a later state.
+ */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Page entrance: content settles in once when a page opens (the one authored motion moment). */
-@keyframes page-settle {
+/*
+ * Page entrance, the one authored moment: each slab comes into focus like glass condensing out of the
+ * sky (blur clears, it settles a few pixels). Layout.tsx adds .settle-in to the page's outermost blocks
+ * in reading order with a capped stagger. `translate` is used rather than `transform`, so it composes
+ * with transforms the element already has.
+ */
+@keyframes settle-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
-    filter: blur(4px);
+    translate: 0 10px;
+    filter: blur(8px);
   }
+}
+.settle-in {
+  animation: settle-in 520ms var(--ease-out) backwards;
+}
+
+/* A panel's content swapping for other content (e.g. Due / Upcoming). */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+.fade-in {
+  animation: fade-in 260ms var(--ease-out) backwards;
+}
+
+/* Something that just became true: a met habit's tick, a fresh state badge. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.5;
+  }
+}
+.pop-in {
+  animation: pop-in 280ms var(--ease-out) backwards;
+}
+
+/* Checkboxes: the circle fills and the tick draws itself in. */
+@keyframes check-fill {
+  from {
+    scale: 0.8;
+  }
+}
+/* Lucide's tick runs from its long end, so a negative offset draws it from the short stroke, like a pen. */
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: -24;
+  }
+}
+[data-slot="checkbox"][data-checked] {
+  animation: check-fill 220ms var(--ease-out);
+}
+[data-slot="checkbox-indicator"] svg path {
+  stroke-dasharray: 24;
+  animation: check-draw 260ms var(--ease-out) 40ms backwards;
+}
+
+/* Completing a task: the strike line draws across the title instead of appearing at once. */
+.strike {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 55%;
+  background-size: 0% 1.5px;
+  transition: background-size 340ms var(--ease-out), color 200ms ease-out;
+}
+.strike-on {
+  background-size: 100% 1.5px;
+}
+
+/* Toasts rise in from the corner and slip away faster than they came. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+    scale: 0.97;
+  }
+}
+@keyframes toast-out {
   to {
-    opacity: 1;
-    transform: none;
-    filter: none;
+    opacity: 0;
+    translate: 16px 0;
   }
 }
-.page-settle {
-  animation: page-settle 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+.toast-in {
+  animation: toast-in 320ms var(--ease-out) backwards;
+}
+.toast-out {
+  animation: toast-out 160ms ease-in forwards;
 }
 
+/* A new sticky note lands on the board. */
+@keyframes note-drop {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+    scale: 0.94;
+    rotate: -1.5deg;
+  }
+}
+.note-drop {
+  animation: note-drop 360ms var(--ease-out) backwards;
+}
 
-@media (prefers-reduced-motion: reduce) {
-  .star {
-    animation: none !important;
-    opacity: 0.7;
+/* Theme switch: the whole window cross-fades from the old look to the new one (lib/theme.ts). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 360ms;
+  animation-timing-function: var(--ease-out);
+}
+
+/*
+ * Reduced motion: nothing moves or blurs. Arrivals become a short fade, so a state change is still
+ * visible; the stars and the sky's own transitions stop. Keyed to <html data-motion="reduce">, which
+ * lib/motion.ts sets from Settings > Animations (following Windows by default).
+ */
+@keyframes fade-only {
+  from {
+    opacity: 0;
   }
-  .page-settle,
-  .now-line {
-    animation: none !important;
-  }
-  .sky,
-  .sky-sun {
-    transition: none !important;
-  }
+}
+[data-motion="reduce"] :is(.settle-in, .fade-in, .pop-in, .toast-in, .note-drop) {
+  animation: fade-only 160ms ease-out backwards;
+}
+[data-motion="reduce"] :is([data-slot="checkbox"][data-checked], [data-slot="checkbox-indicator"] svg path) {
+  animation: none;
+}
+[data-motion="reduce"] .toast-out {
+  animation: fade-only 120ms ease-in reverse forwards;
+}
+[data-motion="reduce"] .strike {
+  transition: color 200ms ease-out;
+}
+[data-motion="reduce"] .now-line {
+  animation: none !important;
+}
+[data-motion="reduce"] :is(.sky, .sky-sun) {
+  transition: none !important;
+}
+[data-motion="reduce"]::view-transition-group(root) {
+  animation: none;
 }
 
 /* Custom colour picker (react-colorful), restyled to match the app: rounded square + pill hue slider. */
