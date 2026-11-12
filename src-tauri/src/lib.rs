@@ -11,6 +11,8 @@ use tauri::{
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod media;
+
 // Database file name, stored in the app's config directory (see Settings page later).
 const DB_URL: &str = "sqlite:my-dashboard.db";
 
@@ -91,6 +93,12 @@ fn migrations() -> Vec<Migration> {
             version: 12,
             description: "workout history",
             sql: include_str!("../migrations/012_workout_history.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 13,
+            description: "music history",
+            sql: include_str!("../migrations/013_music_history.sql"),
             kind: MigrationKind::Up,
         },
     ]
@@ -196,6 +204,70 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+/// What Spotify is playing on this PC (None when it is closed or idle). Runs off the main thread:
+/// the Windows media calls wait on async operations.
+#[tauri::command]
+async fn now_playing(include_art: bool) -> Result<Option<media::NowPlaying>, String> {
+    tauri::async_runtime::spawn_blocking(move || media::now_playing(include_art))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// Play/pause ("toggle"), "next", "previous", "seek", "shuffle" or "repeat" on Spotify (see media::control).
+/// Returns whether Spotify accepted it.
+#[tauri::command]
+async fn media_control(action: String, value: Option<f64>) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || media::control(&action, value.unwrap_or(0.0)))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// Spotify's own volume in the Windows mixer (0..1), None when it has no audio session.
+#[tauri::command]
+async fn spotify_volume() -> Result<Option<f32>, String> {
+    tauri::async_runtime::spawn_blocking(media::volume)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn set_spotify_volume(level: f32) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || media::set_volume(level))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// Spotify sign-in: waits for the browser's redirect to 127.0.0.1:<port>/callback and returns its query.
+#[tauri::command]
+async fn spotify_auth_wait(port: u16) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || media::wait_for_auth_redirect(port))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// This PC's name. Spotify's desktop app appears in the Web API's device list under it, which is how
+/// Daylight tells this PC's Spotify from a phone or another computer.
+#[tauri::command]
+fn computer_name() -> String {
+    std::env::var("COMPUTERNAME").unwrap_or_default()
+}
+
+/// Opens the Spotify desktop app (or brings it forward if it is already running).
+#[tauri::command]
+fn open_spotify() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: no console window flashes up while `start` hands the link to Spotify.
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", "spotify:"])
+            .creation_flags(0x0800_0000)
+            .spawn()
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let context = tauri::generate_context!();
@@ -206,6 +278,7 @@ pub fn run() {
     backup_database_once(&context.config().identifier, "before-habit-order");
     backup_database_once(&context.config().identifier, "before-note-images");
     backup_database_once(&context.config().identifier, "before-workout-history");
+    backup_database_once(&context.config().identifier, "before-music-history");
 
     tauri::Builder::default()
         // Must be registered first. A second launch just surfaces the running window instead of
@@ -233,6 +306,15 @@ pub fn run() {
             Ok(())
         })
         // Closing the window hides it to the tray; "Quit" in the tray menu really exits.
+        .invoke_handler(tauri::generate_handler![
+            now_playing,
+            media_control,
+            spotify_volume,
+            set_spotify_volume,
+            spotify_auth_wait,
+            computer_name,
+            open_spotify
+        ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();

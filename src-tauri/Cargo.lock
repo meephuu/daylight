@@ -750,8 +750,9 @@ dependencies = [
 
 [[package]]
 name = "daylight-2"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
+ "base64 0.22.1",
  "serde",
  "serde_json",
  "tauri",
@@ -760,6 +761,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tauri-plugin-sql",
+ "windows",
 ]
 
 [[package]]

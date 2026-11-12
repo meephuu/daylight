@@ -40,3 +40,16 @@ export function daysInMonthKey(monthKey: string): number {
 export function firstDayOfMonth(monthKey: string): string {
   return `${monthKey}-01`;
 }
+
+const bangkokClock = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Bangkok",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/** The date and time in Bangkok, "YYYY-MM-DD HH:MM:SS" (sorts and groups as plain text). */
+export function bangkokDateTime(now: Date = new Date()): string {
+  return `${bangkokToday(now)} ${bangkokClock.format(now)}`;
+}

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Clock, Pause, Play, X } from "lucide-react";
+import { Clock, CloudRain, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatMinutes, useAmbientMinutes, useAmbientTime } from "@/lib/ambient";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { formatMinutes, useAmbientMinutes, useAmbientTime, useWeather } from "@/lib/ambient";
 import { skyAt } from "@/lib/sky";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +26,8 @@ export function TimeOfDayDebugPanel() {
   const override = useAmbientTime((state) => state.override);
   const setOverride = useAmbientTime((state) => state.setOverride);
   const minutes = useAmbientMinutes();
+  const rain = useWeather((state) => state.rain);
+  const setRain = useWeather((state) => state.setRain);
 
   const minutesRef = useRef(minutes);
   minutesRef.current = minutes;
@@ -94,6 +98,14 @@ export function TimeOfDayDebugPanel() {
           ))}
         </div>
 
+        <div className="mt-3 flex items-center gap-3 border-t border-foreground/10 pt-3">
+          <Switch id="sky-rain" checked={rain} onCheckedChange={setRain} />
+          <Label htmlFor="sky-rain" className="flex items-center gap-1.5">
+            <CloudRain className="size-4 text-muted-foreground" aria-hidden="true" />
+            Rain
+          </Label>
+        </div>
+
         <div className="mt-3 flex gap-2">
           <Button
             variant={playing ? "default" : "outline"}
@@ -112,6 +124,7 @@ export function TimeOfDayDebugPanel() {
       <Button className="pointer-events-auto glass" variant="ghost" size="sm" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
         <Clock className="size-4" />
         <span className="tabular-nums">{formatMinutes(minutes)}</span>
+        {rain && <CloudRain className="size-3.5 text-muted-foreground" aria-label="Raining" />}
         {override !== null && <span className="text-xs text-muted-foreground">test</span>}
       </Button>
     </div>

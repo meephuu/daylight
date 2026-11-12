@@ -70,7 +70,8 @@ export function ExpenseFormDialog({
   const title = expense ? (expense.status === "pending" ? "Confirm expense" : "Edit expense") : prefill ? "Duplicate expense" : "Add expense";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* Wide enough for a row of category and payment chips, like the other form dialogs. */}
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

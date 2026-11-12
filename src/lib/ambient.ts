@@ -34,11 +34,23 @@ export const useAmbientTime = create<AmbientTimeState>((set) => ({
   setOverride: (override) => set({ override }),
 }));
 
+interface WeatherState {
+  /** Rain over the sky (switched from the time tester for now; not saved). */
+  rain: boolean;
+  setRain: (rain: boolean) => void;
+}
+
+export const useWeather = create<WeatherState>((set) => ({
+  rain: false,
+  setRain: (rain) => set({ rain }),
+}));
+
 // Development only: lets screenshot scripts scrub the sky (`__daylight.setSkyTime(18 * 60)`).
 if (import.meta.env.DEV) {
   (window as unknown as { __daylight?: Record<string, unknown> }).__daylight = {
     ...(window as unknown as { __daylight?: Record<string, unknown> }).__daylight,
     setSkyTime: (minutes: number | null) => useAmbientTime.getState().setOverride(minutes),
+    setRain: (on: boolean) => useWeather.getState().setRain(on),
   };
 }
 

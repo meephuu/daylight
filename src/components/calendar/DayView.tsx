@@ -205,7 +205,7 @@ export function DayView({ day, entriesByDate, onPickDay, onAdd, onEdit }: DayVie
       </section>
 
       {/* ---------------------------------------------------------------- the side */}
-      <aside className="flex min-w-0 flex-col gap-3 md:sticky md:top-1">
+      <aside className="flex min-w-0 flex-col gap-3 md:sticky md:top-12">
         <section className="pane p-3" aria-label="This week">
           <div className="grid grid-cols-7 gap-0.5">
             {weekOf(day).map((other) => {

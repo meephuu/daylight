@@ -6,6 +6,7 @@ import CalendarPage from "@/pages/Calendar";
 import ExpensesPage from "@/pages/Expenses";
 import HabitsPage from "@/pages/Habits";
 import HomePage from "@/pages/Home";
+import MusicPage from "@/pages/Music";
 import NotesPage from "@/pages/Notes";
 import ReviewPage from "@/pages/Review";
 import SettingsPage from "@/pages/Settings";
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="training" element={<TrainingPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="expenses" element={<ExpensesPage />} />
+            <Route path="music" element={<MusicPage />} />
             <Route path="review" element={<ReviewPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

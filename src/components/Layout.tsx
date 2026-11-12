@@ -5,6 +5,7 @@ import {
   CheckSquare,
   ClipboardCheck,
   Dumbbell,
+  Disc3,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
@@ -14,6 +15,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { GlassRain } from "@/components/ambient/GlassRain";
 import { SkyBackground } from "@/components/ambient/SkyBackground";
 import { TimeOfDayDebugPanel } from "@/components/ambient/TimeOfDayDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -21,7 +23,8 @@ import { Toaster } from "@/components/Toaster";
 import { TitleBar } from "@/components/TitleBar";
 import { TrayEvents } from "@/components/TrayEvents";
 import { SkyOrb } from "@/components/ambient/SkyOrb";
-import { SHOW_TIME_DEBUG_PANEL } from "@/lib/ambient";
+import { SHOW_TIME_DEBUG_PANEL, useWeather } from "@/lib/ambient";
+import { NowPlayingService } from "@/lib/nowPlaying";
 import { useSidebar } from "@/lib/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +36,7 @@ const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/habits", label: "Habits", icon: Repeat },
   { to: "/training", label: "Training", icon: Dumbbell },
   { to: "/expenses", label: "Expenses", icon: Wallet },
+  { to: "/music", label: "Music", icon: Disc3 },
   { to: "/review", label: "Weekly review", icon: ClipboardCheck },
 ];
 
@@ -141,8 +145,10 @@ function usePageEntrance(pageRef: React.RefObject<HTMLElement | null>, pathname:
 export function Layout() {
   const location = useLocation();
   const { compact, setCompact } = useSidebar();
+  const rain = useWeather((state) => state.rain);
   const asideRef = useRef<HTMLElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const veilRef = useRef<HTMLDivElement>(null);
   const { slab, placed } = useActiveSlab(asideRef, location.pathname);
   usePageEntrance(pageRef, location.pathname);
 
@@ -153,6 +159,22 @@ export function Layout() {
   return (
     <div className="flex h-screen flex-col text-foreground">
       <SkyBackground />
+      {/*
+        The frosted top edge of the scroll area (see .scroll-veil). It lives outside the scroll area so it can
+        start at the sidebar's edge: over the 12px gap it fades in, letting the blur of text near the content's
+        left edge spread and fade instead of being sliced off. It follows the sidebar's width.
+      */}
+      <div
+        ref={veilRef}
+        aria-hidden="true"
+        className="scroll-veil pointer-events-none fixed top-0 right-0 z-30 h-20 transition-[left] duration-[380ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+        style={{ left: (compact ? 60 : 212) + 12 }}
+      >
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
       <TitleBar section={section} />
       <div className="flex min-h-0 flex-1 gap-3 px-3 pb-3">
         {/*
@@ -209,14 +231,30 @@ export function Layout() {
             <NavItem {...SETTINGS_ITEM} compact={compact} />
           </div>
         </aside>
+        {/* Drops on the glass while it rains: above the panes, below dialogs and toasts. */}
+        <GlassRain active={rain} />
         <TrayEvents />
+        {/* Spotify, read once for the whole app; also keeps the listening history. */}
+        <NowPlayingService />
         <Toaster />
         {SHOW_TIME_DEBUG_PANEL && <TimeOfDayDebugPanel />}
         {/* relative: keeps absolutely positioned content (screen-reader tables) inside this scroll area instead of stretching the whole window */}
-        <main className="relative min-w-0 flex-1 overflow-y-auto rounded-2xl">
+        {/*
+          The scroll area runs from the window's top edge (under the title bar, -mt-10) to its bottom edge (-mb-3
+          cancels the shell's bottom gutter, which only the sidebar keeps), so content is never sliced off in
+          the middle of the window. Near the top, a frosted veil blurs and dims what scrolls up under the title
+          bar; it fades in with the first few pixels of scroll, so a page at rest is perfectly sharp.
+        */}
+        <main
+          className="relative -mt-10 -mb-3 min-w-0 flex-1 overflow-y-auto"
+          onScroll={(event) => {
+            // A variable, not opacity on the veil: opacity on a parent would stop its layers' blur working.
+            veilRef.current?.style.setProperty("--veil", String(Math.min(1, event.currentTarget.scrollTop / 32)));
+          }}
+        >
           {/* Keyed by route: a page that crashes shows a message, and opening another page recovers. */}
           <ErrorBoundary key={location.pathname}>
-            <div ref={pageRef} className="px-1 pt-1 pb-6">
+            <div ref={pageRef} className="px-1 pt-11 pb-9">
               <Outlet />
             </div>
           </ErrorBoundary>

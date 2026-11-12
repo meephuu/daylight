@@ -5,6 +5,7 @@ import { HabitToggles } from "@/components/home/HabitToggles";
 import { HomeTasks } from "@/components/home/HomeTasks";
 import { NextUpCard } from "@/components/home/NextUpCard";
 import { ProjectProgressWidget } from "@/components/home/ProjectProgressWidget";
+import { NowPlayingCard } from "@/components/home/NowPlayingCard";
 import { SpentThisMonthWidget } from "@/components/home/SpentThisMonthWidget";
 import { SunDial } from "@/components/home/SunDial";
 import { TodayAgenda } from "@/components/home/TodayAgenda";
@@ -81,12 +82,23 @@ export default function HomePage() {
         </p>
       )}
 
+      {/*
+        Two rows that line up across the columns. Wide windows: the day spans both rows on the left; Next up
+        and Now playing share row 1 (so they are the same height); Tasks and the habits/training/money stack
+        share row 2 (Tasks and the last card stretch, so every column ends on the same line). The day only
+        fills the height the others set, scrolling inside, so its long list never stretches the page.
+        Medium windows: the day beside Next up and Tasks, then Now playing beside the stack.
+      */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        <div className="lg:col-span-6 xl:col-span-5">
-          <TodayAgenda />
+        <div className="lg:relative lg:col-span-6 lg:row-span-2 lg:min-h-[480px] xl:col-span-5">
+          <div className="lg:absolute lg:inset-0">
+            <TodayAgenda />
+          </div>
         </div>
-        <div className="flex flex-col gap-3 lg:col-span-6 xl:col-span-4">
+        <div className="flex flex-col lg:col-span-6 xl:col-span-4 xl:col-start-6 xl:row-start-1 [&>*]:grow">
           <NextUpCard nextDeadline={upcoming[0]} />
+        </div>
+        <div className="flex flex-col lg:col-span-6 xl:col-span-4 xl:col-start-6 xl:row-start-2 [&>*]:grow">
           <HomeTasks
             overdue={overdue}
             today={dueToday}
@@ -96,7 +108,12 @@ export default function HomePage() {
             onComplete={complete}
           />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:col-span-12 xl:col-span-3 xl:grid-cols-1 xl:content-start">
+        {/* Matches Next up's height on wide windows only; beside the stack on medium windows it keeps its own. */}
+        <div className="flex flex-col self-start lg:col-span-6 xl:col-span-3 xl:col-start-10 xl:row-start-1 xl:self-stretch xl:[&>*]:grow">
+          <NowPlayingCard />
+        </div>
+        <div className="flex flex-col gap-3 lg:col-span-6 xl:col-span-3 xl:col-start-10 xl:row-start-2 [&>*]:h-auto [&>*]:shrink-0 [&>*:last-child]:grow">
+          {/* Cards keep their full height (never squeezed); only the last one grows to fill the column. */}
           <HabitToggles />
           <TodayTrainingWidget />
           <SpentThisMonthWidget />

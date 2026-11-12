@@ -1,6 +1,6 @@
 [package]
 name = "daylight-2"
-version = "2.0.0"
+version = "2.1.0"
 description = "Daylight 2.0 - a personal dashboard for tasks, habits, notes and expenses"
 authors = ["you"]
 edition = "2024"
@@ -25,6 +25,11 @@ serde_json = "1"
 tauri-plugin-sql = { version = "2.6.0", features = ["sqlite"] }
 tauri-plugin-autostart = "2.7.0"
 tauri-plugin-single-instance = "2.5.4"
+
+# Now playing (Spotify) through Windows' media controls; see src/media.rs. Same windows crate as Tauri uses.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Media", "Media_Control", "Storage_Streams", "Win32_Foundation", "Win32_Media_Audio", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Threading", "Win32_System_Variant", "Win32_System_WinRT"] }
+base64 = "0.22"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

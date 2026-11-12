@@ -48,6 +48,7 @@ export function NextUpCard({ nextDeadline }: NextUpCardProps) {
 
   return (
     <section
+      data-glass
       className="flex min-h-60 flex-col justify-between gap-6 rounded-[26px] p-6 shadow-[inset_0_1px_0_var(--glass-edge),inset_0_0_0_1px_var(--glass-rim),var(--glass-shadow)] backdrop-blur-[22px]"
       style={{
         // The hour's colour, poured through the glass.

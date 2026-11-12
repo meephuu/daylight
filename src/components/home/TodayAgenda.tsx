@@ -108,8 +108,8 @@ export function TodayAgenda() {
       {/* The top edge fades, so hours scrolling past melt away instead of being cut in half. */}
       <div
         ref={scrollRef}
-        className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-5 [mask-image:linear-gradient(to_bottom,transparent,black_6px)]"
-        style={{ maxHeight: 520 }}
+        // Capped on narrow windows; beside the other columns it fills the height they set (Home.tsx).
+        className="relative max-h-[520px] min-h-0 flex-1 overflow-y-auto px-4 pb-5 [mask-image:linear-gradient(to_bottom,transparent,black_6px)] lg:max-h-none"
       >
         <div className="relative" style={{ height: PAD_TOP + height + 12 }}>
           {hours.map((hour) => (

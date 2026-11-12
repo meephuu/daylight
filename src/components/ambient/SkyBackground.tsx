@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { accentFromCover, useNowPlayingStore } from "@/lib/nowPlaying";
+import { RainField } from "@/components/ambient/RainField";
 import { StarField } from "@/components/ambient/StarField";
-import { useAmbientMinutes, useAmbientPrefs } from "@/lib/ambient";
+import { useAmbientMinutes, useAmbientPrefs, useWeather } from "@/lib/ambient";
 import { skyAt, sunTimes, type SkyColors } from "@/lib/sky";
 import { classicGlowAt, classicStarsAt } from "@/lib/classicGlow";
 import { useTheme } from "@/lib/theme";
@@ -57,15 +60,27 @@ export function SkyBackground() {
   const black = useTheme((state) => state.theme === "black");
   const sky = black ? BLACK_SKY : skyAt(minutes, dark, sun);
   const nightStars = useAmbientPrefs((state) => state.nightStars);
+  const rain = useWeather((state) => state.rain);
+  // Music page option: while a song plays, its cover's colour becomes the sky's accent and sun.
+  const cover = useNowPlayingStore((state) => (state.skyTint && state.track?.playing ? state.coverColor : null));
+  const accent = cover ? accentFromCover(cover, dark) : sky.accent;
+  const glow = cover ? accentFromCover(cover, dark) : sky.glow;
+  // On the Music page the colour is poured strongly over the left half of the window, behind the
+  // turntable, and dissolves into the hour's sky (see .album-wash).
+  const onMusic = useLocation().pathname.startsWith("/music");
+  const wash = cover ? accentFromCover(cover, dark, { lightness: dark ? 32 : 60, minSaturation: 72 }) : null;
+  // A bright daytime sky drowns the colour, so by day it spreads further across the window and a little
+  // stronger: 0 at night, 1 from 45 min after sunrise to 45 min before sunset, easing in between.
+  const daylight = Math.max(0, Math.min(1, Math.min(minutes - sun.sunrise, sun.sunset - minutes) / 45));
 
   useEffect(() => {
     const style = document.documentElement.style;
     style.setProperty("--sky-top", sky.top);
     style.setProperty("--sky-mid", sky.mid);
     style.setProperty("--sky-bottom", sky.bottom);
-    style.setProperty("--sky-glow", sky.glow);
-    style.setProperty("--sky-accent", sky.accent);
-  }, [sky.top, sky.mid, sky.bottom, sky.glow, sky.accent]);
+    style.setProperty("--sky-glow", glow);
+    style.setProperty("--sky-accent", accent);
+  }, [sky.top, sky.mid, sky.bottom, glow, accent]);
 
   return (
     <div aria-hidden="true" className="sky pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -77,11 +92,27 @@ export function SkyBackground() {
           style={{
             left: `${sky.glowX}%`,
             top: `${sky.glowY}%`,
-            opacity: sky.glowOpacity,
+            // Behind rain clouds the sun is only a faint brightening.
+            opacity: rain ? sky.glowOpacity * 0.3 : sky.glowOpacity,
           }}
         />
       )}
-      <StarField visibility={nightStars ? (black ? classicStarsAt(minutes) : sky.stars) : 0} />
+      {/* Clouds hide the stars; they come back when the rain clears. */}
+      <StarField visibility={nightStars && !rain ? (black ? classicStarsAt(minutes) : sky.stars) : 0} />
+      {/* The overcast: a grey veil over whatever hour it is, so the time of day still shows through. */}
+      <div className="rain-veil absolute inset-0" style={{ opacity: rain ? 1 : 0 }} />
+      <RainField active={rain} />
+      {/* The album's colour (Music page), in front of the rain so the colour stays clean. */}
+      <div
+        className="album-wash absolute inset-y-0 left-0"
+        style={
+          {
+            opacity: onMusic && wash ? 0.85 + 0.07 * daylight : 0,
+            "--wash-width": `${60 + 30 * daylight}vw`,
+            ...(wash ? { "--wash": wash } : {}),
+          } as React.CSSProperties
+        }
+      />
     </div>
   );
 }

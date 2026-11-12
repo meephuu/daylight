@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Segmented } from "@/components/Segmented";
@@ -8,7 +8,46 @@ import type { Project } from "@/lib/db/projects";
 import type { Task } from "@/lib/db/tasks";
 import { cn } from "@/lib/utils";
 
+/** Where the card is not stretched by its neighbours (narrow windows), it shows this many. */
 const LIMIT = 7;
+/** From this width Home lines its columns up (Home.tsx) and the card fills its height with tasks. */
+const FILL_QUERY = "(min-width: 1280px)";
+
+function useMatches(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+  return matches;
+}
+
+/**
+ * How many of a list's rows fit its box whole. The list sits in a box that takes the card's leftover
+ * height (and adds none of its own), so rows past the bottom are counted out instead of cut in half.
+ */
+function useRowsThatFit(list: HTMLUListElement | null, rows: number): number {
+  const [fit, setFit] = useState(rows);
+  useLayoutEffect(() => {
+    if (!list) return;
+    const measure = () => {
+      const limit = list.clientHeight;
+      let count = 0;
+      for (const item of Array.from(list.children) as HTMLElement[]) {
+        if (item.offsetTop + item.offsetHeight > limit + 1) break;
+        count += 1;
+      }
+      setFit(count);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [list, rows]);
+  return fit;
+}
 
 interface HomeTasksProps {
   overdue: Task[];
@@ -19,10 +58,24 @@ interface HomeTasksProps {
   onComplete: (task: Task) => void;
 }
 
-function TaskRow({ task, project, onComplete }: { task: Task; project: Project | undefined; onComplete: (task: Task) => void }) {
+function TaskRow({
+  task,
+  project,
+  onComplete,
+  hidden = false,
+}: {
+  task: Task;
+  project: Project | undefined;
+  onComplete: (task: Task) => void;
+  /** Past the bottom of the card: kept for measuring, but out of sight and out of reach. */
+  hidden?: boolean;
+}) {
   const late = isOverdue(task.dueDate);
   return (
-    <li className="flex min-h-10 items-center gap-3 rounded-2xl px-2.5 py-1.5 transition-colors hover:bg-foreground/[0.05]">
+    // Hidden rows use visibility: hidden, which also takes them out of the tab order and screen readers.
+    <li
+      className={cn("flex min-h-10 shrink-0 items-center gap-3 rounded-2xl px-2.5 py-1.5 transition-colors hover:bg-foreground/[0.05]", hidden && "invisible")}
+    >
       <Checkbox checked={false} onCheckedChange={() => onComplete(task)} aria-label={`Mark ${task.title} as done`} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{task.title}</p>
@@ -50,8 +103,12 @@ export function HomeTasks({ overdue, today, upcoming, upcomingDays, projectsById
   const due = [...overdue, ...today];
   const [view, setView] = useState<"due" | "upcoming">(due.length > 0 ? "due" : "upcoming");
   const list = view === "due" ? due : upcoming;
-  const shown = list.slice(0, LIMIT);
-  const hidden = list.length - shown.length;
+  // Wide windows: as many as fit the card. Otherwise a fixed handful.
+  const fill = useMatches(FILL_QUERY);
+  const [listEl, setListEl] = useState<HTMLUListElement | null>(null);
+  const fit = useRowsThatFit(fill ? listEl : null, list.length);
+  const shownCount = fill ? Math.min(fit, list.length) : Math.min(LIMIT, list.length);
+  const hidden = list.length - shownCount;
 
   const options = [
     { value: "due" as const, label: "Due", count: due.length },
@@ -86,9 +143,21 @@ export function HomeTasks({ overdue, today, upcoming, upcomingDays, projectsById
           {view === "due" ? "Nothing due today." : `Nothing due in the next ${upcomingDays} days.`}
         </p>
       ) : (
-        <ul key={view} className="fade-in -mx-1 flex flex-col">
-          {shown.map((task) => (
-            <TaskRow key={task.id} task={task} project={task.projectId === null ? undefined : projectsById.get(task.projectId)} onComplete={onComplete} />
+        <ul
+          key={view}
+          ref={setListEl}
+          // When filling, the list takes the card's leftover height and contributes none, so the other
+          // columns decide the card's height and the rows fill it; rows that do not fit are hidden whole.
+          className={cn("fade-in -mx-1 flex flex-col", fill && "min-h-0 flex-1 overflow-hidden")}
+        >
+          {(fill ? list : list.slice(0, LIMIT)).map((task, index) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              project={task.projectId === null ? undefined : projectsById.get(task.projectId)}
+              onComplete={onComplete}
+              hidden={index >= shownCount}
+            />
           ))}
         </ul>
       )}

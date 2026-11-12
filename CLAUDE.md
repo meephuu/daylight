@@ -34,14 +34,14 @@ Import alias: `@/` -> `src/`.
 ## Architecture
 
 ```
-src/pages/        one file per route (Home, Tasks, Calendar, Habits, Training, Notes, Expenses, Review, Settings)
+src/pages/        one file per route (Home, Tasks, Calendar, Habits, Training, Notes, Expenses, Music, Review, Settings)
 src/components/   shared pieces at top level; feature folders (home/, expenses/, training/, ...)
 src/components/ui shadcn primitives
 src/components/ambient/  SkyBackground, StarField, SkyOrb, debug panel
 src/hooks/        TanStack Query hooks, one per domain (useTasks, useExpenses, ...)
 src/lib/db/       SQL access per table (getDb() in client.ts), zod schemas and types
 src/lib/          pure logic and helpers (sky.ts, bangkok.ts, review.ts, recurring.ts, ...)
-src-tauri/        Rust shell: tray, single instance, autostart, migrations registry
+src-tauri/        Rust shell: tray, single instance, autostart, migrations registry; src/media.rs reads and controls Spotify via Windows media controls and its mixer volume (commands now_playing, media_control, spotify_volume, set_spotify_volume, spotify_auth_wait)
 src-tauri/migrations/  numbered SQLite migrations
 ```
 
@@ -49,7 +49,9 @@ Data flow: `pages/components -> hooks/useX (react-query) -> lib/db/x (SQL via pl
 
 Database: `sqlite:my-dashboard.db`, WAL mode, foreign keys on. `DB_URL` in `src/lib/db/client.ts` must match `src-tauri/src/lib.rs`.
 
-App behaviour: custom title bar (no native decorations), min window 900x600, default 1200x780. Closing the window hides to the tray; "Quit" in the tray menu exits. Tray "Quick add task" focuses the quick-add input. Autostart launches into the tray.
+Music: `NowPlayingService` (mounted once in Layout, `src/lib/nowPlaying.ts`) polls Spotify for the whole app and writes the listening history (`music_tracks`, `music_plays`). `src/lib/spotify.ts` is the optional Web API client (PKCE with the owner's own Client ID, redirect `http://127.0.0.1:43117/callback`, tokens in localStorage).
+
+App behaviour: custom title bar (no native decorations), min window 900x600, default 1200x780. Full screen: the title bar button or F11 (TitleBar.tsx; needs the set/is-fullscreen window permissions in capabilities/default.json). Closing the window hides to the tray; "Quit" in the tray menu exits. Tray "Quick add task" focuses the quick-add input. Autostart launches into the tray.
 
 ## Locale conventions
 
