@@ -710,18 +710,26 @@
   box-shadow:
     0 28px 60px -22px rgb(0 0 0 / 0.75),
     0 6px 16px -8px rgb(0 0 0 / 0.5);
+  transition: box-shadow 0.5s ease-out;
+}
+/* A liquid record is mostly see-through, so it throws a lighter shadow. */
+.vinyl-shadow.vinyl-shadow-glass {
+  box-shadow:
+    0 24px 50px -24px rgb(0 0 0 / 0.38),
+    0 5px 14px -8px rgb(0 0 0 / 0.24);
 }
 .vinyl-sheen {
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
     transparent 0deg 18deg,
-    rgb(255 255 255 / 0.16) 42deg,
+    rgb(255 255 255 / calc(0.16 * var(--sheen, 1))) 42deg,
     transparent 70deg 196deg,
-    rgb(255 255 255 / 0.11) 222deg,
+    rgb(255 255 255 / calc(0.11 * var(--sheen, 1))) 222deg,
     transparent 250deg
   );
   mask: radial-gradient(circle closest-side, transparent 0 43%, black 44% 96%, transparent 97%);
+  /* --sheen: glass finishes catch more of the light. */
 }
 /* The record's turning is driven from script (Turntable's useSpin), so it can speed up and coast down. */
 

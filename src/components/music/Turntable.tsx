@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Music2 } from "lucide-react";
+import { LiquidPour, type LiquidMotion } from "@/components/music/LiquidPour";
 import { formatTrackTime, inkOn } from "@/lib/nowPlaying";
 import { useRecordStyle, vinylLook, type LabelStyle } from "@/lib/recordStyle";
 import { cn } from "@/lib/utils";
@@ -49,9 +50,10 @@ const isReducedMotion = () => document.documentElement.dataset.motion === "reduc
 /**
  * Turns the record like a real platter: it takes a moment to come up to speed when a song starts and
  * coasts to a stop when it pauses, instead of jumping between still and spinning. Under reduced motion
- * it stands still.
+ * it stands still. A liquid record's colour moves in the same frames (`liquid`), and keeps the loop running
+ * until it has settled.
  */
-function useSpin(playing: boolean) {
+function useSpin(playing: boolean, liquid: React.RefObject<LiquidMotion | null>) {
   const discRef = useRef<HTMLDivElement>(null);
   const state = useRef({ angle: 0, speed: 0, frame: 0, last: 0, playing });
   state.current.playing = playing;
@@ -69,7 +71,8 @@ function useSpin(playing: boolean) {
       if (target === 0 && s.speed < 1) s.speed = 0;
       s.angle = (s.angle + s.speed * dt) % 360;
       if (discRef.current) discRef.current.style.rotate = `${s.angle}deg`;
-      if (s.speed === 0 && !s.playing) {
+      const flowing = liquid.current?.(s.speed, dt, s.angle) ?? false;
+      if (s.speed === 0 && !s.playing && !flowing) {
         s.frame = 0;
         s.last = 0;
         return;
@@ -77,7 +80,7 @@ function useSpin(playing: boolean) {
       s.frame = requestAnimationFrame(step);
     };
     s.frame = requestAnimationFrame(step);
-  }, [playing]);
+  }, [playing, liquid]);
 
   // Stopping marks the loop as stopped, so it starts again on the next mount (React runs effects twice in
   // development; without the reset the record would never turn after that).
@@ -89,7 +92,7 @@ function useSpin(playing: boolean) {
       s.last = 0;
     };
   }, []);
-  return discRef;
+  return [discRef, state] as const;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -262,7 +265,9 @@ export function Turntable({
   onNeedle,
   accessory,
 }: TurntableProps) {
-  const discRef = useSpin(playing);
+  const liquidMotion = useRef<LiquidMotion | null>(null);
+  const [discRef, spin] = useSpin(playing, liquidMotion);
+  const discAngle = useCallback(() => spin.current.angle, [spin]);
   const svgRef = useRef<SVGSVGElement>(null);
   // Where the arm is while it is being moved by hand.
   const [dragDeg, setDragDeg] = useState<number | null>(null);
@@ -330,13 +335,16 @@ export function Turntable({
         ))}
 
         {/* The record. It turns with the platter (see useSpin); the light on it stays still. */}
-        <div className="vinyl-shadow absolute top-[6cqw] left-[8cqw] size-[88cqw]">
+        <div className={cn("vinyl-shadow absolute top-[6cqw] left-[8cqw] size-[88cqw]", look.liquid && "vinyl-shadow-glass")}>
+          {/* A liquid record's colour: a live layer under the glass disc, turning with it (see LiquidPour). */}
+          {look.liquid && <LiquidPour color={look.liquid.color} motion={liquidMotion} discAngle={discAngle} />}
           <div
             ref={discRef}
             className="vinyl absolute inset-0"
             style={
               {
-                "--vinyl-fill": look.fill,
+                // A liquid record is glass, with its colour under it.
+                "--vinyl-fill": look.liquid ? look.liquid.glass : look.fill,
                 "--vinyl-rim": look.rim,
                 "--groove-dark": look.grooveDark,
                 "--groove-light": look.grooveLight,
@@ -350,7 +358,11 @@ export function Turntable({
             />
             <RecordLabel title={title} artist={artist} album={album} color={color} art={art} labelStyle={recordStyle.label} />
           </div>
-          <div className="vinyl-sheen pointer-events-none absolute inset-0" aria-hidden="true" />
+          <div
+            className="vinyl-sheen pointer-events-none absolute inset-0"
+            style={{ "--sheen": look.sheen } as React.CSSProperties}
+            aria-hidden="true"
+          />
         </div>
 
         {/*

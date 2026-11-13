@@ -10,6 +10,7 @@ const FINISHES: { value: VinylFinish; label: string }[] = [
   { value: "clear", label: "Clear" },
   { value: "marble", label: "Marble" },
   { value: "splatter", label: "Splatter" },
+  { value: "liquid", label: "Liquid" },
   { value: "split", label: "Split" },
 ];
 
@@ -20,7 +21,7 @@ const LABELS: { value: LabelStyle; label: string }[] = [
   { value: "white", label: "White" },
 ];
 
-/** A small disc showing a vinyl colour in the chosen finish, as the swatch for that colour. */
+/** A small disc showing a vinyl in a colour and finish: the swatch for a colour, or for a finish. */
 function Swatch({ fill, selected }: { fill: string; selected: boolean }) {
   return (
     <span
@@ -112,14 +113,23 @@ export function RecordStyleMenu() {
 
         <div>
           <p className="mb-2 text-xs font-medium text-foreground/70">Finish</p>
-          <Segmented
-            size="sm"
-            aria-label="Vinyl finish"
-            value={style.finish}
-            onChange={(finish) => style.set({ finish })}
-            options={FINISHES}
-            className="w-full justify-between"
-          />
+          {/* Each finish shown in the chosen colour, like the colours above; the name is in its tooltip. */}
+          <div className="grid grid-cols-6 gap-2.5" role="radiogroup" aria-label="Vinyl finish">
+            {FINISHES.map((finish) => (
+              <button
+                key={finish.value}
+                type="button"
+                role="radio"
+                aria-checked={style.finish === finish.value}
+                aria-label={finish.label}
+                title={finish.label}
+                onClick={() => style.set({ finish: finish.value })}
+                className="group/swatch grid place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <Swatch fill={vinylLook({ ...style, finish: finish.value }, coverColor).fill} selected={style.finish === finish.value} />
+              </button>
+            ))}
+          </div>
         </div>
 
         <div>
