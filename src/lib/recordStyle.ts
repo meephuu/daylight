@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { accentFromCover } from "@/lib/nowPlaying";
+import { accentFromCover, isBlackCover } from "@/lib/nowPlaying";
 import { liquidTexture, marbleTexture, splatterTexture } from "@/lib/vinylFinishes";
 
 /**
@@ -90,7 +90,9 @@ export function vinylLook(style: RecordStyle, coverColor: string | null): VinylL
   const preset = VINYL_COLORS.find((item) => item.id === style.color);
   const base =
     style.color === "album" && coverColor
-      ? accentFromCover(coverColor, true, { lightness: 40, minSaturation: 50 })
+      ? isBlackCover(coverColor)
+        ? "#141416"
+        : accentFromCover(coverColor, true, { lightness: 40, minSaturation: 50 })
       : (preset ?? VINYL_COLORS[0]!).hex;
   const light = style.color === "album" ? false : !!preset?.light;
   const darker = `color-mix(in oklab, ${base}, black 40%)`;

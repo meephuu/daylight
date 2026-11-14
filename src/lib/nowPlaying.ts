@@ -169,28 +169,85 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  * A cover's colour: the average of its mid-tone pixels (very dark and very light ones are skipped, so a
  * black border or white type does not wash it out).
  */
+export const BLACK_COVER = "rgb(6 6 8)";
+
+export function isBlackCover(color: string | null): boolean {
+  return color === BLACK_COVER;
+}
+
 export async function coverColorOf(art: string): Promise<string | null> {
   const image = await loadImage(art);
+  const size = 32;
   const canvas = document.createElement("canvas");
-  canvas.width = 12;
-  canvas.height = 12;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return null;
-  ctx.drawImage(image, 0, 0, 12, 12);
-  const data = ctx.getImageData(0, 0, 12, 12).data;
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let n = 0;
+  ctx.drawImage(image, 0, 0, size, size);
+  const data = ctx.getImageData(0, 0, size, size).data;
+
+  // Like Spotify: pick the most vivid prominent hue, not the muddy average of everything. Each pixel votes
+  // for its hue bucket with a weight that grows with saturation squared, so a small vivid detail (green
+  // type on a beige cover, a red jacket) beats a large pale or brownish area.
+  const BUCKETS = 24;
+  const weight = new Array<number>(BUCKETS).fill(0);
+  const sums = Array.from({ length: BUCKETS }, () => [0, 0, 0, 0]); // r, g, b, weight
+  let ar = 0;
+  let ag = 0;
+  let ab = 0;
+  let an = 0;
+  let dark = 0;
+  let vivid = 0;
   for (let i = 0; i < data.length; i += 4) {
-    const light = (data[i]! + data[i + 1]! + data[i + 2]!) / 3;
-    if (light < 28 || light > 235) continue;
-    r += data[i]!;
-    g += data[i + 1]!;
-    b += data[i + 2]!;
-    n += 1;
+    const r = data[i]!;
+    const g = data[i + 1]!;
+    const b = data[i + 2]!;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    if (max < 90) dark += 1;
+    if (max - min >= 0.18 * max && max >= 45) vivid += 1;
+    if (max < 30 || min > 235) continue;
+    ar += r;
+    ag += g;
+    ab += b;
+    an += 1;
+    const delta = max - min;
+    const sat = delta / max;
+    if (sat < 0.18 || max < 45) continue;
+    let hue = 0;
+    if (delta > 0) {
+      if (max === r) hue = ((g - b) / delta) % 6;
+      else if (max === g) hue = (b - r) / delta + 2;
+      else hue = (r - g) / delta + 4;
+    }
+    const bucket = Math.floor((((hue * 60) + 360) % 360) / (360 / BUCKETS)) % BUCKETS;
+    const w = sat * sat * (0.4 + max / 255 * 0.6);
+    weight[bucket]! += w;
+    const s = sums[bucket]!;
+    s[0]! += r * w;
+    s[1]! += g * w;
+    s[2]! += b * w;
+    s[3]! += w;
   }
-  return n > 0 ? `rgb(${Math.round(r / n)} ${Math.round(g / n)} ${Math.round(b / n)})` : null;
+  // A black-and-white cover with black dominant is simply black (no grey average).
+  const total = size * size;
+  if (vivid < total * 0.12 && dark > total * 0.45) return BLACK_COVER;
+  // Neighbouring buckets count together, so one hue split across a bucket edge is not outvoted.
+  let best = -1;
+  let bestScore = 0;
+  for (let k = 0; k < BUCKETS; k++) {
+    const score = weight[k]! + 0.5 * (weight[(k + 1) % BUCKETS]! + weight[(k + BUCKETS - 1) % BUCKETS]!);
+    if (score > bestScore) {
+      bestScore = score;
+      best = k;
+    }
+  }
+  if (best >= 0 && sums[best]![3]! > 0) {
+    const s = sums[best]!;
+    return `rgb(${Math.round(s[0]! / s[3]!)} ${Math.round(s[1]! / s[3]!)} ${Math.round(s[2]! / s[3]!)})`;
+  }
+  // A grey or black-and-white cover: the plain average of what is left.
+  return an > 0 ? `rgb(${Math.round(ar / an)} ${Math.round(ag / an)} ${Math.round(ab / an)})` : null;
 }
 
 /** A small JPEG of the cover for the history (a few KB instead of the 200 KB original). */

@@ -16,6 +16,11 @@ const VISCOSITY = 0.6;
 const CURRENT_REACH = 28;
 /** How long the current keeps flowing after the record stops, in seconds: the liquid's momentum. */
 const MOMENTUM = 2.4;
+/**
+ * How often the flowing shape is redrawn, a second. It is an SVG filter, costly to redraw, and changes slowly,
+ * so it does not need every frame; the turning, slosh and spread are transforms and do run every frame.
+ */
+const FLOW_FPS = 30;
 /** The slosh: a wobble that swings about once a second and dies away over a few swings. */
 const SLOSH_STIFFNESS = (2 * Math.PI * 0.9) ** 2;
 const SLOSH_DAMPING = 2 * 0.22 * Math.sqrt(SLOSH_STIFFNESS);
@@ -60,7 +65,8 @@ export function LiquidPour({
     const warp = layer?.querySelector(`#${id}-warp`);
     const pool = poolRef.current;
     if (!layer || !flow || !warp || !pool) return;
-    const state = { own: 0, slip: 0, current: 0, churn: 0, slosh: 0, sloshSpeed: 0 };
+    const state = { own: 0, slip: 0, current: 0, churn: 0, slosh: 0, sloshSpeed: 0, sinceFlow: 0 };
+    const shown = { dx: "", dy: "", warp: "" };
     layer.style.rotate = `${discAngle().toFixed(2)}deg`;
 
     motion.current = (speed, dt, angle) => {
@@ -87,10 +93,25 @@ export function LiquidPour({
       // Flung outward with the square of its speed, as a spinning liquid is.
       const spin = (state.own / FULL_SPEED) ** 2;
 
-      const turn = state.churn * Math.PI * 2;
-      flow.setAttribute("dx", (Math.cos(turn) * CURRENT_REACH + state.slosh * 10).toFixed(2));
-      flow.setAttribute("dy", (Math.sin(turn * 1.37) * CURRENT_REACH - state.slosh * 6).toFixed(2));
-      warp.setAttribute("scale", (14 + 10 * pace + 12 * Math.min(1, Math.abs(state.slosh))).toFixed(2));
+      // The flowing shape: at most FLOW_FPS times a second, and only when it has visibly changed.
+      state.sinceFlow += dt;
+      if (state.sinceFlow >= 1 / FLOW_FPS) {
+        state.sinceFlow = 0;
+        const turn = state.churn * Math.PI * 2;
+        const dx = (Math.cos(turn) * CURRENT_REACH + state.slosh * 10).toFixed(1);
+        const dy = (Math.sin(turn * 1.37) * CURRENT_REACH - state.slosh * 6).toFixed(1);
+        const scale = (14 + 10 * pace + 12 * Math.min(1, Math.abs(state.slosh))).toFixed(1);
+        if (dx !== shown.dx || dy !== shown.dy) {
+          flow.setAttribute("dx", dx);
+          flow.setAttribute("dy", dy);
+          shown.dx = dx;
+          shown.dy = dy;
+        }
+        if (scale !== shown.warp) {
+          warp.setAttribute("scale", scale);
+          shown.warp = scale;
+        }
+      }
       // Flung out: the pools spread from the centre, up to a sixth further out at full speed (a scale on the
       // layer, so it costs nothing to draw).
       pool.style.scale = (1 + 0.16 * spin + 0.03 * state.slosh).toFixed(4);

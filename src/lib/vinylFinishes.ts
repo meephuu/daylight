@@ -157,7 +157,7 @@ export function liquidMarkup(color: string, id: string): string {
     `<filter id="${id}" filterUnits="userSpaceOnUse" x="-140" y="-140" width="280" height="280" color-interpolation-filters="sRGB">` +
     // The droplets are drawn red and the bubbles blue, so the filter can tell them apart: droplets join the
     // pool, bubbles cut it.
-    `<feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="3" seed="21" result="noise"/>` +
+    `<feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="21" result="noise"/>` +
     `<feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="6" result="current"/>` +
     `<feOffset id="${id}-flow" in="current" dx="0" dy="0" result="drift"/>` +
     `<feDisplacementMap id="${id}-warp" in="noise" in2="drift" scale="14" xChannelSelector="R" yChannelSelector="G" result="flowing"/>` +
@@ -167,21 +167,17 @@ export function liquidMarkup(color: string, id: string): string {
     `<feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="holes"/>` +
     `<feMerge result="shape"><feMergeNode in="pool"/><feMergeNode in="drops"/></feMerge>` +
     `<feComposite in="shape" in2="holes" operator="out" result="liquid"/>` +
-    // Colour, a little deeper where the pool is thick (its middle). The record blends it onto what is behind
-    // it like coloured glass (LiquidPour), so it is painted solid here.
-    `<feGaussianBlur in="liquid" stdDeviation="5" result="depth"/>` +
+    // The colour, painted solid: the record blends it onto what is behind it like coloured glass
+    // (LiquidPour). Kept to few, cheap steps, since the turning record redraws it many times a second.
     `<feFlood style="flood-color:${color}" result="paint"/>` +
     `<feComposite in="paint" in2="liquid" operator="in" result="body"/>` +
-    `<feFlood flood-color="#000" flood-opacity="0.16"/>` +
-    `<feComposite in2="depth" operator="in"/>` +
-    `<feComposite in2="liquid" operator="in" result="shade"/>` +
     // Gloss: a thin, faint glint where the pool's surface curves at its edge, lit from the upper left (a
     // tight highlight, kept faint: a real meniscus only catches a sliver of light).
     `<feGaussianBlur in="liquid" stdDeviation="0.7" result="bump"/>` +
     `<feSpecularLighting in="bump" surfaceScale="2.5" specularConstant="0.9" specularExponent="50" lighting-color="#fff" result="light"><feDistantLight azimuth="225" elevation="42"/></feSpecularLighting>` +
     `<feComposite in="light" in2="liquid" operator="in" result="glint"/>` +
     `<feComponentTransfer in="glint" result="gloss"><feFuncA type="linear" slope="0.8"/></feComponentTransfer>` +
-    `<feMerge><feMergeNode in="body"/><feMergeNode in="shade"/><feMergeNode in="gloss"/></feMerge>` +
+    `<feMerge><feMergeNode in="body"/><feMergeNode in="gloss"/></feMerge>` +
     `</filter>` +
     `<g transform="translate(100 100)" filter="url(#${id})"><g transform="translate(-100 -100)">${liquidBits}</g></g>`
   );

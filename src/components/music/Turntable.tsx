@@ -340,7 +340,9 @@ export function Turntable({
           {look.liquid && <LiquidPour color={look.liquid.color} motion={liquidMotion} discAngle={discAngle} />}
           <div
             ref={discRef}
-            className="vinyl absolute inset-0"
+            // Its own layer: drawn once and turned by the graphics card each frame, not repainted (the
+            // grooves are costly to paint, and a repainted record's moiré would stand still as it turns).
+            className="vinyl absolute inset-0 [will-change:transform,rotate]"
             style={
               {
                 // A liquid record is glass, with its colour under it.

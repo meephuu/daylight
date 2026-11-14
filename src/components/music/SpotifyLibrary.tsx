@@ -305,8 +305,8 @@ function CoverTile({
             className={cn(
               "pointer-events-auto absolute top-2 left-2 grid size-8 place-items-center rounded-full outline-none transition-[opacity,background-color,scale] duration-200 hover:scale-105 focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95",
               pinned
-                ? "bg-primary text-primary-foreground opacity-100 shadow-[0_6px_14px_-6px_rgb(0_0_0/0.7)]"
-                : "bg-black/45 text-white opacity-0 backdrop-blur-sm group-hover/tile:opacity-100 hover:bg-black/60",
+                ? "glass text-foreground opacity-100"
+                : "glass text-foreground opacity-0 group-hover/tile:opacity-100",
             )}
           >
             {pinned ? <Pin className="size-3.5" fill="currentColor" /> : <Pin className="size-3.5" />}
