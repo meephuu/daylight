@@ -68,6 +68,81 @@ export async function updatePlay(playId: number, listenedMs: number): Promise<vo
   await db.execute("UPDATE music_plays SET listened_ms = $1 WHERE id = $2", [Math.round(listenedMs), playId]);
 }
 
+/** A play Spotify logged on another device (from its recently played list). */
+export interface ImportedPlay {
+  title: string;
+  /** Every artist, main one first. */
+  artists: string[];
+  album: string;
+  art: string | null;
+  /** Bangkok local "YYYY-MM-DD HH:MM:SS". */
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+}
+
+/** Bangkok local "YYYY-MM-DD HH:MM:SS" -> epoch ms. */
+function bangkokMs(value: string): number {
+  return Date.parse(`${value.replace(" ", "T")}+07:00`);
+}
+
+/** Moves a Bangkok local "YYYY-MM-DD HH:MM:SS" by `ms`. */
+function shiftBangkok(value: string, ms: number): string {
+  const shifted = new Date(bangkokMs(value) + ms + 7 * 3_600_000);
+  return shifted.toISOString().slice(0, 19).replace("T", " ");
+}
+
+/**
+ * Adds a play from Spotify's history unless Daylight already has it: the PC records its own plays live,
+ * and Spotify lists those too. It counts as known when the same song was recorded around that time, or
+ * when another recorded play mostly covers the same minutes (one account plays one song at a time).
+ * Returns whether it was added.
+ */
+export async function importPlay(play: ImportedPlay): Promise<boolean> {
+  const db = await getDb();
+  const start = bangkokMs(play.startedAt);
+  const end = bangkokMs(play.endedAt);
+  const nearby = z
+    .array(z.object({ title: z.string(), started_at: z.string(), listened_ms: z.number() }))
+    .parse(
+      await db.select<unknown>(
+        `SELECT t.title, p.started_at, p.listened_ms
+           FROM music_plays p JOIN music_tracks t ON t.id = p.track_id
+          WHERE p.started_at BETWEEN $1 AND $2`,
+        [shiftBangkok(play.startedAt, -play.durationMs - 3 * 60_000), shiftBangkok(play.endedAt, 60_000)],
+      ),
+    );
+  const title = play.title.toLowerCase();
+  const known = nearby.some((row) => {
+    if (row.title.toLowerCase() === title) return true;
+    const rowStart = bangkokMs(row.started_at);
+    const rowEnd = rowStart + Math.max(row.listened_ms, LISTEN_MIN_MS);
+    const overlap = Math.min(end, rowEnd) - Math.max(start, rowStart);
+    return overlap > 0.5 * Math.min(end - start, rowEnd - rowStart);
+  });
+  if (known) return false;
+
+  // Reuse the song's row when the PC already knows it (Windows may name only the main artist).
+  const names = [play.artists.join(", "), play.artists[0] ?? ""].filter(Boolean);
+  const existing = z
+    .array(z.object({ id: z.number() }))
+    .parse(
+      await db.select<unknown>(
+        `SELECT id FROM music_tracks WHERE lower(title) = lower($1) AND artist IN (${names.map((_, i) => `$${i + 2}`).join(", ")}) LIMIT 1`,
+        [play.title, ...names],
+      ),
+    );
+  const trackId =
+    existing[0]?.id ?? (await upsertTrack({ title: play.title, artist: names[0] ?? "", album: play.album, art: play.art }));
+  await db.execute("INSERT INTO music_plays (track_id, started_at, listened_ms, duration_ms) VALUES ($1, $2, $3, $4)", [
+    trackId,
+    play.startedAt,
+    play.durationMs,
+    play.durationMs,
+  ]);
+  return true;
+}
+
 /** Time listened per day, from `from` (YYYY-MM-DD) on. Days with nothing are left out. */
 export async function listListeningDays(from: string): Promise<DayListening[]> {
   const db = await getDb();

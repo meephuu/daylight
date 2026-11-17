@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { accentFromCover, isBlackCover, useNowPlayingStore } from "@/lib/nowPlaying";
+import { accentFromCover, useNowPlayingStore } from "@/lib/nowPlaying";
 import { RainField } from "@/components/ambient/RainField";
 import { StarField } from "@/components/ambient/StarField";
 import { useAmbientMinutes, useAmbientPrefs, useWeather } from "@/lib/ambient";
 import { skyAt, sunTimes, type SkyColors } from "@/lib/sky";
-import { classicGlowAt, classicStarsAt } from "@/lib/classicGlow";
+
 import { useTheme } from "@/lib/theme";
+import { useAudioPulse } from "@/lib/audioPulse";
+import { cn } from "@/lib/utils";
 
 /**
- * The Black theme's sky: Daylight 1.0's plain black window, with one fixed accent. Its time of day comes
- * from the original app's blurry glow and star timings (lib/classicGlow.ts), drawn below.
+ * The Black theme's sky: Daylight 1.0's plain black window, with one fixed accent: no time-of-day
+ * glow and no stars.
  */
 const BLACK_SKY: SkyColors & { stars: number } = {
   top: "#0a0a0a",
@@ -64,12 +66,20 @@ export function SkyBackground() {
   // Music page option: while a song plays, its cover's colour becomes the sky's accent and sun.
   const cover = useNowPlayingStore((state) => (state.skyTint && state.track?.playing ? state.coverColor : null));
   const accent = cover ? accentFromCover(cover, dark) : sky.accent;
-  // A black cover darkens the sun too (no grey glow).
-  const glow = cover ? (isBlackCover(cover) ? cover : accentFromCover(cover, dark)) : sky.glow;
+  const glow = cover ? accentFromCover(cover, dark) : sky.glow;
   // On the Music page the colour is poured strongly over the left half of the window, behind the
   // turntable, and dissolves into the hour's sky (see .album-wash).
   const onMusic = useLocation().pathname.startsWith("/music");
-  const wash = cover && isBlackCover(cover) ? cover : cover ? accentFromCover(cover, dark, { lightness: dark ? 32 : 60, minSaturation: 72 }) : null;
+  // The Black theme pours it from the top of the window instead, on every page.
+  const fromTop = black;
+  const wash = cover ? accentFromCover(cover, dark, { lightness: dark ? 32 : 60, minSaturation: 72 }) : null;
+  const washShown = !!wash && (fromTop || onMusic);
+  // "Pulse with the music": a brighter copy of the wash that swells with each beat (see lib/audioPulse.ts).
+  const pulseOn = useNowPlayingStore((state) => state.pulse);
+  const pulseRef = useRef<HTMLDivElement>(null);
+  useAudioPulse(pulseRef, washShown && pulseOn);
+  // --wash is registered with inherits: false (so it can animate), so every layer sets it on itself.
+  const washColor = (wash ? { "--wash": wash } : {}) as React.CSSProperties;
   // A bright daytime sky drowns the colour, so by day it spreads further across the window and a little
   // stronger: 0 at night, 1 from 45 min after sunrise to 45 min before sunset, easing in between.
   const daylight = Math.max(0, Math.min(1, Math.min(minutes - sun.sunrise, sun.sunset - minutes) / 45));
@@ -85,9 +95,8 @@ export function SkyBackground() {
 
   return (
     <div aria-hidden="true" className="sky pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      {black ? (
-        <ClassicGlow minutes={minutes} />
-      ) : (
+      {/* The Black theme stays plain black: no sun or time-of-day glow behind the glass. */}
+      {!black && (
         <div
           className="sky-sun absolute rounded-full"
           style={{
@@ -99,45 +108,51 @@ export function SkyBackground() {
         />
       )}
       {/* Clouds hide the stars; they come back when the rain clears. */}
-      <StarField visibility={nightStars && !rain ? (black ? classicStarsAt(minutes) : sky.stars) : 0} />
+      {/* No stars on the Black theme: it stays a plain black window. */}
+      <StarField visibility={nightStars && !rain && !black ? sky.stars : 0} />
       {/* The overcast: a grey veil over whatever hour it is, so the time of day still shows through. */}
       <div className="rain-veil absolute inset-0" style={{ opacity: rain ? 1 : 0 }} />
       <RainField active={rain} />
-      {/* The album's colour (Music page), in front of the rain so the colour stays clean. */}
+      {/*
+        The album's colour, in front of the rain so the colour stays clean: over the left half on the Music
+        page, or (Black theme) from the top of the window on every page.
+      */}
       <div
-        className="album-wash absolute inset-y-0 left-0"
+        className={cn("album-wash absolute", fromTop ? "album-wash-top inset-x-0 top-0" : "inset-y-0 left-0")}
         style={
           {
-            // A black cover is a lighter veil, or the whole left side goes heavy.
-            opacity: onMusic && wash ? (isBlackCover(cover) ? 0.65 : 0.85 + 0.07 * daylight) : 0,
+            opacity: washShown ? 0.85 + 0.07 * daylight : 0,
             "--wash-width": `${60 + 30 * daylight}vw`,
             ...(wash ? { "--wash": wash } : {}),
           } as React.CSSProperties
         }
       />
+      {/*
+        "Pulse with the music". The beat value (--pulse) is written on this wrapper and inherited by every
+        layer in it. Light and Dark also pour the colour in from the right, so it beats on both sides.
+      */}
+      <div
+        ref={pulseRef}
+        className="contents"
+        style={{ "--wash-width": `${60 + 30 * daylight}vw` } as React.CSSProperties}
+      >
+        <div
+          className={cn("album-wash album-pulse absolute", fromTop ? "album-wash-top inset-x-0 top-0" : "inset-y-0 left-0")}
+          style={{ visibility: washShown && pulseOn ? "visible" : "hidden", ...washColor }}
+        />
+        {!fromTop && (
+          <>
+            <div
+              className="album-wash album-wash-right absolute inset-y-0 right-0"
+              style={{ opacity: washShown && pulseOn ? 0.85 + 0.07 * daylight : 0, ...washColor }}
+            />
+            <div
+              className="album-wash album-wash-right album-pulse absolute inset-y-0 right-0"
+              style={{ visibility: washShown && pulseOn ? "visible" : "hidden", ...washColor }}
+            />
+          </>
+        )}
+      </div>
     </div>
-  );
-}
-
-/** Daylight 1.0's glow, exactly as it was: one very blurry shape that moves and recolours through the day. */
-function ClassicGlow({ minutes }: { minutes: number }) {
-  const glow = classicGlowAt(minutes);
-  return (
-    <div
-      className="absolute rounded-full motion-reduce:transition-none"
-      style={{
-        left: `${glow.x}%`,
-        top: `${glow.y}%`,
-        width: `${glow.width}vw`,
-        height: `${glow.height}vw`,
-        transform: "translate(-50%, -50%)",
-        backgroundColor: glow.color,
-        opacity: glow.opacity,
-        filter: "blur(clamp(70px, 8vw, 150px))",
-        // Smooths the small steps of the real clock and the time tester.
-        transition:
-          "left 500ms linear, top 500ms linear, width 500ms linear, height 500ms linear, background-color 500ms linear, opacity 500ms linear",
-      }}
-    />
   );
 }

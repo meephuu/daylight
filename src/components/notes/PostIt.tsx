@@ -320,6 +320,7 @@ export function PostIt({ note, needsRaise, dimmed, selected = false, groupOffset
             colors={NOTE_COLORS}
             onChange={(color) => setColor.mutate({ id: note.id, color })}
             allowCustom
+            palette="notes"
           />
         </div>
       )}

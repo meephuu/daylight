@@ -9,6 +9,7 @@ import { Turntable } from "@/components/music/Turntable";
 import { Switch } from "@/components/ui/switch";
 import { livePosition, media, useNowPlaying, useNowPlayingStore } from "@/lib/nowPlaying";
 import { disconnectSpotify, useSpotify } from "@/lib/spotify";
+import { cn } from "@/lib/utils";
 
 /**
  * Music: the song Spotify is playing on this PC, on a turntable (the record turns and the arm drifts
@@ -20,6 +21,8 @@ export default function MusicPage() {
   const coverColor = useNowPlayingStore((state) => state.coverColor);
   const skyTint = useNowPlayingStore((state) => state.skyTint);
   const setSkyTint = useNowPlayingStore((state) => state.setSkyTint);
+  const pulse = useNowPlayingStore((state) => state.pulse);
+  const setPulse = useNowPlayingStore((state) => state.setPulse);
   const connected = useSpotify((state) => state.auth !== null);
 
   // Move the arm and the progress between polls while playing.
@@ -80,6 +83,17 @@ export default function MusicPage() {
               <label className="flex h-8 cursor-pointer items-center gap-2.5 rounded-full px-3 text-[13px] text-foreground/85">
                 <Switch checked={skyTint} onCheckedChange={setSkyTint} aria-label="Album colour in the sky" />
                 Album colour in the sky
+              </label>
+              {/* Only with the colour on: the pulse moves the colour, so without it there is nothing to see. */}
+              <label
+                className={cn(
+                  "flex h-8 items-center gap-2.5 rounded-full px-3 text-[13px] text-foreground/85",
+                  skyTint ? "cursor-pointer" : "cursor-not-allowed opacity-50",
+                )}
+                title={skyTint ? "The colour beats with what Spotify is playing" : "Turn on Album colour in the sky first"}
+              >
+                <Switch checked={skyTint && pulse} onCheckedChange={setPulse} disabled={!skyTint} aria-label="Pulse" />
+                Pulse
               </label>
               {connected && (
                 <button

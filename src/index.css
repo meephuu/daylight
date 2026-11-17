@@ -216,9 +216,10 @@
     --input: rgb(255 255 255 / 0.15);
     --ring: #7aa2ff;
 
-    --glass-fill: #171717;
+    /* See-through glass like the other themes: the album colour and stars show through the slabs. */
+    --glass-fill: rgb(24 24 24 / 0.42);
     --glass-fill-strong: rgb(23 23 23 / 0.96);
-    --glass-edge: rgb(255 255 255 / 0.06);
+    --glass-edge: rgb(255 255 255 / 0.16);
     --glass-rim: rgb(255 255 255 / 0.08);
     --glass-shadow: 0 8px 24px -14px rgb(0 0 0 / 0.7);
     --glass-well: rgb(0 0 0 / 0.3);
@@ -341,6 +342,35 @@
     opacity 0.9s ease-out,
     width 1.2s ease-out,
     --wash 1.2s ease-out;
+}
+/* Black theme: the colour pours down from the top of the window instead, on every page. */
+.album-wash.album-wash-top {
+  width: auto;
+  height: 70vh;
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 1.000) 6.0%, rgb(0 0 0 / 0.826) 13.3%, rgb(0 0 0 / 0.670) 20.7%, rgb(0 0 0 / 0.531) 28.0%, rgb(0 0 0 / 0.410) 35.3%, rgb(0 0 0 / 0.306) 42.7%, rgb(0 0 0 / 0.218) 50.0%, rgb(0 0 0 / 0.146) 57.3%, rgb(0 0 0 / 0.089) 64.7%, rgb(0 0 0 / 0.047) 72.0%, rgb(0 0 0 / 0.019) 79.3%, rgb(0 0 0 / 0.004) 86.7%, rgb(0 0 0 / 0.000) 94.0%);
+}
+/*
+ * "Pulse with the music": a copy of the wash, lit (screen blend) and stretched a little further by --pulse
+ * (0..1, written every frame by lib/audioPulse.ts), so each beat swells the colour out and then lets it go.
+ */
+.album-wash.album-pulse {
+  opacity: calc(var(--pulse, 0) * 0.7);
+  mix-blend-mode: screen;
+  transform-origin: left center;
+  transform: scaleX(calc(1 + var(--pulse, 0) * 0.16));
+  transition: none;
+  will-change: opacity, transform;
+}
+.album-wash.album-pulse.album-wash-top {
+  transform-origin: center top;
+  transform: scaleY(calc(1 + var(--pulse, 0) * 0.16));
+}
+/* With the pulse on (Light and Dark): the same colour poured in from the right edge, mirrored. */
+.album-wash.album-wash-right {
+  mask-image: linear-gradient(to left, rgb(0 0 0 / 1.000) 6.0%, rgb(0 0 0 / 0.826) 13.3%, rgb(0 0 0 / 0.670) 20.7%, rgb(0 0 0 / 0.531) 28.0%, rgb(0 0 0 / 0.410) 35.3%, rgb(0 0 0 / 0.306) 42.7%, rgb(0 0 0 / 0.218) 50.0%, rgb(0 0 0 / 0.146) 57.3%, rgb(0 0 0 / 0.089) 64.7%, rgb(0 0 0 / 0.047) 72.0%, rgb(0 0 0 / 0.019) 79.3%, rgb(0 0 0 / 0.004) 86.7%, rgb(0 0 0 / 0.000) 94.0%);
+}
+.album-wash.album-pulse.album-wash-right {
+  transform-origin: right center;
 }
 [data-motion="reduce"] .album-wash {
   transition: none;

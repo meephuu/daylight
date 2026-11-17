@@ -331,7 +331,7 @@ export default function NotesPage() {
           </Button>
           <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFilesChosen} />
           <span className="mx-1 h-5 w-px bg-foreground/15" aria-hidden="true" />
-          <ColorSwatches value={newColor} colors={NOTE_COLORS} onChange={chooseColor} allowCustom />
+          <ColorSwatches value={newColor} colors={NOTE_COLORS} onChange={chooseColor} allowCustom palette="notes" />
         </Toolbar>
         <div className="pane relative w-64 rounded-full">
           <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />

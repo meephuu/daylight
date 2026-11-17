@@ -43,8 +43,9 @@ function CountdownTile({ task, project, today }: { task: Task; project: Project 
   const fraction = done ? 1 : elapsedFraction(task.createdAt, dueDate, today);
 
   return (
-    <Card className="gap-0 overflow-hidden py-0">
-      <div className="flex items-stretch">
+    <Card className="relative gap-0 overflow-hidden py-0">
+      {/* Grows to the row's height, so every tile's bar sits on the same line at the bottom. */}
+      <div className="flex flex-1 items-stretch">
         {/* The ticket stub: days left, big, in the project's colour wash. */}
         <div
           className="flex w-32 shrink-0 flex-col items-center justify-center border-r border-dashed border-foreground/15 px-3 py-5 text-center"
@@ -57,7 +58,7 @@ function CountdownTile({ task, project, today }: { task: Task; project: Project 
               <span className="mt-1.5 text-xs font-medium text-muted-foreground">Done</span>
             </>
           ) : days === 0 ? (
-            <span className="display-num text-[34px]" style={{ color: TONE_COLOR[tone] }}>
+            <span className="display-num text-[28px]" style={{ color: TONE_COLOR[tone] }}>
               Today
             </span>
           ) : (
@@ -105,6 +106,14 @@ function CountdownTile({ task, project, today }: { task: Task; project: Project 
           style={{ width: `${fraction * 100}%`, backgroundColor: done ? accent : tone === "overdue" ? "var(--viz-critical)" : accent }}
         />
       </div>
+      {/*
+        The glass rim, drawn again over the content: the pane's rim is an inset shadow, so the stub's wash
+        and a full progress bar (Today, Done) would otherwise paint over the card's edge.
+      */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_var(--glass-edge),inset_0_0_0_1px_var(--glass-rim)]"
+      />
     </Card>
   );
 }

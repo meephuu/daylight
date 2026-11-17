@@ -19,12 +19,12 @@ export function DailySpendingChart({ days, budgetSatang }: DailySpendingChartPro
       <CardHeader>
         <CardTitle>Daily spending</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         {!hasSpending ? (
           <p className="py-6 text-center text-sm text-muted-foreground">No expenses this month.</p>
         ) : (
           <>
-            <div className="h-48" aria-hidden="true">
+            <div className="min-h-48 flex-1" aria-hidden="true">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={days} margin={{ top: 12, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--viz-grid)" strokeWidth={1} />

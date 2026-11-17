@@ -121,18 +121,14 @@ export function TodayAgenda() {
             </div>
           ))}
 
-          {/* Blocks sit to the right of the hour labels; overlapping ones share the width. */}
-          {/* Each lane is at most 220px wide, so a block reads as an entry, not a banner. */}
-          <div
-            className="absolute top-0 bottom-0 left-[52px]"
-            style={{ width: `min(calc(100% - 52px), ${timeline.lanes * 220}px)` }}
-          >
+          {/* Blocks fill the width right of the hour labels; things at the same time split it into columns. */}
+          <div className="absolute top-0 right-0 bottom-0 left-[52px]">
             {timeline.blocks.map((block) => {
               const { entry } = block;
               const range = formatTimeRange(entry.startTime, entry.endTime);
               const blockTop = top(block.startMin);
               const blockHeight = Math.max(30, ((block.endMin - block.startMin) / 60) * HOUR_PX - 3);
-              const width = 100 / timeline.lanes;
+              const width = 100 / block.groupLanes;
               const tall = blockHeight >= 44;
               return (
                 <div

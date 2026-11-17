@@ -118,7 +118,7 @@ Eight validated categorical series (`--series-1..8`; dataviz validator, all chec
 
 ### Named Rules
 - **The sky is the only material.** No texture, grain or pattern on glass. One exception, owner-requested: rain on the glass (`GlassRain`) while it rains, gone when the glass dries.
-- **Black theme is the exception.** Settings > Appearance > Black (`.dark.black` on `<html>`) drops the sky for Daylight 1.0's look: a `#0a0a0a` window with the original app's one very blurry glow that moves through the day (orange top left in the morning, pale-blue ellipse across the top in the afternoon, red-orange top right in the evening, gone by 20:00; lib/classicGlow.ts, the original values unchanged), stars at night on the original timings, `#171717` slabs, neutral grey ink and a fixed `#7aa2ff` accent. Everything else in this file still applies.
+- **Black theme is the exception.** Settings > Appearance > Black (`.dark.black` on `<html>`) drops the sky for Daylight 1.0's look: a plain `#0a0a0a` window with no time-of-day glow (removed at the owner's request, 2026-11-17), no stars, see-through neutral glass slabs (`rgb(24 24 24 / 0.42)`, so the album colour and stars show through), neutral grey ink and a fixed `#7aa2ff` accent. Everything else in this file still applies.
 - **One moving colour.** Only `--sky-accent` follows the clock; everything else is fixed.
 
 ## Typography
@@ -167,6 +167,7 @@ One language: arrivals decelerate with ease-out-quint (`--ease-out`, `cubic-bezi
 - **Scroll edges:** the scroll area runs from the window's top edge (under the title bar) to its bottom edge, so content is never sliced mid-window. At the top, `.scroll-veil` is a progressive blur: a fixed 80px band from the sidebar's edge to the window's right (it fades in across the 12px gap, so blur near the content's left edge spreads instead of being cut; it follows the sidebar width) of four stacked backdrop-blur layers (1.5 / 3 / 6 / 12px, each masked over a shorter stretch from the top), so content going up under the title bar grows softer toward the window edge with no band, tint or edge; over plain sky it shows nothing. Its layers fade in over the first 32px of scroll (a `--veil` variable, never opacity on the parent, which would stop the layers blurring). Never mask the scroll area itself: that breaks the panes' glass.
 - **Theme switch:** the whole window cross-fades (View Transitions).
 - Dialogs, popovers and menus keep their quick fade-and-zoom.
+- **Settings rows** (Settings page): each section is one pane with its title (and an optional one-line description), then rows split by hairlines. A row is the setting's name (14px medium) and what it does (12px muted) on the left, its control right-aligned (stacked below on narrow windows). Never put a control under a section title without its own row.
 - **Animations setting** (Settings > Appearance): Follow Windows (default) / On / Off. lib/motion.ts writes `<html data-motion="full|reduce">`; CSS, Tailwind's `motion-reduce:` (redefined in index.css) and script motion all read that, never the media query directly.
 
 ## Do's and Don'ts

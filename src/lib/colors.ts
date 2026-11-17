@@ -6,7 +6,6 @@ export const ACCENT_COLORS = [
   { name: "Green", value: "#22c55e" },
   { name: "Teal", value: "#14b8a6" },
   { name: "Blue", value: "#3b82f6" },
-  { name: "Indigo", value: "#6366f1" },
   { name: "Violet", value: "#8b5cf6" },
   { name: "Pink", value: "#ec4899" },
   { name: "Slate", value: "#64748b" },

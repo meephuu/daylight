@@ -5,7 +5,7 @@ import { Segmented } from "@/components/Segmented";
 import { useListeningDays, useSpotifyArtistImage, useSpotifyPlay, useTopArtists, useTopTracks } from "@/hooks/useMusic";
 import { bangkokToday } from "@/lib/bangkok";
 import type { TopArtist, TopTrack } from "@/lib/db/music";
-import { explain, findTrack, useSpotify } from "@/lib/spotify";
+import { canReadHistory, connectSpotify, explain, findTrack, useSpotify } from "@/lib/spotify";
 import { showToast } from "@/lib/toast";
 import { toDateString } from "@/lib/dates";
 import { cn } from "@/lib/utils";
@@ -181,6 +181,10 @@ export function ListeningStats({ beside }: { beside?: React.ReactNode }) {
   // Playing a top song: found on Spotify by its title and artist, then played like a search result (its
   // album, from that song on), on this PC's Spotify.
   const connected = useSpotify((state) => state.auth !== null);
+  // Sign-ins from before the phone history was added lack its permission until Spotify is connected again.
+  const needsReconnect = useSpotify((state) => state.auth !== null && !canReadHistory(state.auth));
+  const clientId = useSpotify((state) => state.auth?.clientId ?? "");
+  const reconnecting = useSpotify((state) => state.connecting);
   const playOnSpotify = useSpotifyPlay();
   const [starting, setStarting] = useState<number | null>(null);
   const playTop = async (track: TopTrack) => {
@@ -229,16 +233,16 @@ export function ListeningStats({ beside }: { beside?: React.ReactNode }) {
             />
           </div>
 
-          {/* Totals as type, split by a hairline. */}
-          <div className="flex items-stretch gap-5">
-            <div>
+          {/* Totals as type: two equal columns across the card, split by a hairline. */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-5">
+            <div className="min-w-0">
               <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.02em] tabular-nums">
                 {formatListening(todayTotal)}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">today</p>
             </div>
             <span className="w-px bg-foreground/12" aria-hidden="true" />
-            <div>
+            <div className="min-w-0">
               <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.02em] tabular-nums">
                 {formatListening(rangeTotal)}
               </p>
@@ -253,6 +257,19 @@ export function ListeningStats({ beside }: { beside?: React.ReactNode }) {
             </p>
           ) : (
             <DayBars days={days} totals={totals} today={today} range={range} />
+          )}
+          {needsReconnect && (
+            <p className="text-xs text-muted-foreground">
+              Count what you play on your phone too: Spotify needs one more permission.{" "}
+              <button
+                type="button"
+                disabled={reconnecting}
+                onClick={() => void connectSpotify(clientId)}
+                className="font-medium text-foreground underline underline-offset-2 outline-none hover:text-sky-accent focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+              >
+                {reconnecting ? "Waiting for Spotify…" : "Connect again"}
+              </button>
+            </p>
           )}
         </section>
       </div>

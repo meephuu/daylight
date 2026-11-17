@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Music2, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowUpRight, Music2, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { formatTrackTime, useCoverColor, useNowPlaying } from "@/lib/nowPlaying";
 import { cn } from "@/lib/utils";
 
@@ -74,13 +75,23 @@ export function NowPlayingCard() {
           {shown ? status : "Music"}
           {live && <Equalizer playing={track.playing} />}
         </h2>
-        <span className="text-xs text-muted-foreground">
+        {/* Opens the Music page (the turntable, the library and the listening stats). */}
+        <Link
+          to="/music"
+          title="Open the Music page"
+          className="-mr-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
           {!live && last ? ago(last.seenAt) : "Spotify"}
-        </span>
+          <ArrowUpRight className="size-3.5" aria-hidden="true" />
+        </Link>
       </div>
 
       {shown ? (
-        <div className="flex min-w-0 items-center gap-4">
+        <Link
+          to="/music"
+          aria-label={`${shown.title} by ${shown.artist}: open the Music page`}
+          className="group/np -m-1.5 flex min-w-0 items-center gap-4 rounded-[14px] p-1.5 outline-none transition-colors hover:bg-foreground/[0.06] focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
           <div className="relative size-[72px] shrink-0 overflow-hidden rounded-[8px] bg-foreground/10 shadow-[0_8px_20px_-10px_rgb(0_0_0/0.6)]">
             {art ? (
               <img src={art} alt="" className={cn("size-full object-cover transition-[filter] duration-500", !live && "grayscale-[0.35]")} />
@@ -101,7 +112,7 @@ export function NowPlayingCard() {
               </p>
             )}
           </div>
-        </div>
+        </Link>
       ) : (
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="grid size-[52px] shrink-0 place-items-center rounded-[8px] bg-foreground/[0.07]">

@@ -17,6 +17,8 @@ export interface TimelineBlock {
   endMin: number;
   /** Row the block sits in; overlapping blocks go on separate rows. */
   lane: number;
+  /** Lanes used by this block's cluster (the blocks it overlaps, directly or through each other). */
+  groupLanes: number;
 }
 
 export interface Timeline {
@@ -39,27 +41,44 @@ export function layoutTimeline(entries: ScheduleEntry[]): Timeline {
       const length = Math.max(end !== null && end > start ? end - start : 0, MIN_BLOCK_MINUTES);
       return { entry, startMin: start, endMin: Math.min(start + length, 24 * 60) };
     })
-    .filter((block): block is Omit<TimelineBlock, "lane"> => block !== null)
+    .filter((block): block is Omit<TimelineBlock, "lane" | "groupLanes"> => block !== null)
     .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 
-  const laneEnds: number[] = [];
-  const blocks: TimelineBlock[] = timed.map((block) => {
-    let lane = laneEnds.findIndex((end) => end <= block.startMin);
+  // Blocks that overlap form a cluster; lanes are packed per cluster, so a block on its own is one lane
+  // wide even if other hours of the day need two.
+  let laneEnds: number[] = [];
+  let maxLanes = 0;
+  let clusterEnd = -1;
+  let cluster: TimelineBlock[] = [];
+  const blocks: TimelineBlock[] = [];
+  const closeCluster = () => {
+    for (const block of cluster) block.groupLanes = laneEnds.length;
+    maxLanes = Math.max(maxLanes, laneEnds.length);
+    cluster = [];
+    laneEnds = [];
+  };
+  for (const item of timed) {
+    if (item.startMin >= clusterEnd) closeCluster();
+    let lane = laneEnds.findIndex((end) => end <= item.startMin);
     if (lane === -1) {
       lane = laneEnds.length;
-      laneEnds.push(block.endMin);
+      laneEnds.push(item.endMin);
     } else {
-      laneEnds[lane] = block.endMin;
+      laneEnds[lane] = item.endMin;
     }
-    return { ...block, lane };
-  });
+    const block: TimelineBlock = { ...item, lane, groupLanes: 1 };
+    cluster.push(block);
+    blocks.push(block);
+    clusterEnd = Math.max(clusterEnd, item.endMin);
+  }
+  closeCluster();
 
   const earliest = blocks.reduce((min, block) => Math.min(min, block.startMin), Infinity);
   const latest = blocks.reduce((max, block) => Math.max(max, block.endMin), 0);
   const startHour = Math.max(0, Math.min(DEFAULT_START_HOUR, Math.floor(earliest / 60)));
   const endHour = Math.min(24, Math.max(DEFAULT_END_HOUR, Math.ceil(latest / 60)));
 
-  return { blocks, lanes: Math.max(1, laneEnds.length), startHour, endHour };
+  return { blocks, lanes: Math.max(1, maxLanes), startHour, endHour };
 }
 
 /** Left edge and width of a block as percentages of the axis. */

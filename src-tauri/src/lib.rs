@@ -206,6 +206,30 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
 /// What Spotify is playing on this PC (None when it is closed or idle). Runs off the main thread:
 /// the Windows media calls wait on async operations.
+/// Whether the sound pulse is running; turned off by `audio_pulse(false)` (or when the window closes).
+static PULSE_RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Starts or stops the sound pulse: while on, Spotify's level (0..1) is sent to the window as
+/// "spotify-peak" events about 30 times a second, read from its meter in the Windows volume mixer.
+#[tauri::command]
+fn audio_pulse(app: tauri::AppHandle, on: bool) {
+    use std::sync::atomic::Ordering;
+    use tauri::Emitter;
+    if !on {
+        PULSE_RUNNING.store(false, Ordering::Relaxed);
+        return;
+    }
+    // Already running: nothing to start.
+    if PULSE_RUNNING.swap(true, Ordering::Relaxed) {
+        return;
+    }
+    std::thread::spawn(move || {
+        media::pulse_loop(&PULSE_RUNNING, |peak| {
+            let _ = app.emit("spotify-peak", peak);
+        });
+    });
+}
+
 #[tauri::command]
 async fn now_playing(include_art: bool) -> Result<Option<media::NowPlaying>, String> {
     tauri::async_runtime::spawn_blocking(move || media::now_playing(include_art))
@@ -313,7 +337,8 @@ pub fn run() {
             set_spotify_volume,
             spotify_auth_wait,
             computer_name,
-            open_spotify
+            open_spotify,
+            audio_pulse
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

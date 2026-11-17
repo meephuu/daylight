@@ -226,8 +226,9 @@ export default function ExpensesPage() {
         <UpcomingRecurringCard rules={rules} monthKey={monthKey} today={today} categoriesById={categoriesById} />
       </div>
 
+      {/* Side by side, both cards stretch to the taller one; the daily chart grows to fill its card. */}
       <div className="grid gap-3 xl:grid-cols-12">
-        <div className="xl:col-span-7">
+        <div className="flex flex-col xl:col-span-7 [&>*]:grow">
           <CategoryBreakdown
             data={byCategory}
             budgets={budgetRows}
@@ -235,7 +236,7 @@ export default function ExpensesPage() {
             onSelect={(categoryId) => setFilters((current) => ({ ...current, categoryId }))}
           />
         </div>
-        <div className="xl:col-span-5">
+        <div className="flex flex-col xl:col-span-5 [&>*]:grow">
           <DailySpendingChart days={days} budgetSatang={settings.budgetSatang} />
         </div>
       </div>

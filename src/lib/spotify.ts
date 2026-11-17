@@ -17,6 +17,8 @@ const SCOPES = [
   "user-read-currently-playing",
   "playlist-read-private",
   "playlist-read-collaborative",
+  // Songs played on any device (the phone too), for the listening history.
+  "user-read-recently-played",
 ].join(" ");
 const STORAGE_KEY = "spotifyAuth";
 const API = "https://api.spotify.com/v1";
@@ -27,6 +29,13 @@ interface Auth {
   refreshToken: string;
   /** Date.now() ms. */
   expiresAt: number;
+  /** Scopes Spotify granted (space separated); missing on sign-ins from before it was saved. */
+  scope?: string;
+}
+
+/** Whether this sign-in may read the recently played list (sign-ins before it was added need redoing). */
+export function canReadHistory(auth: Auth | null): boolean {
+  return !!auth?.scope?.split(" ").includes("user-read-recently-played");
 }
 
 function readAuth(): Auth | null {
@@ -103,7 +112,9 @@ function randomString(length = 64): string {
   return base64Url(bytes).slice(0, length);
 }
 
-async function tokenRequest(body: Record<string, string>): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
+async function tokenRequest(
+  body: Record<string, string>,
+): Promise<{ access_token: string; refresh_token?: string; expires_in: number; scope?: string }> {
   const response = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -150,6 +161,7 @@ export async function connectSpotify(clientId: string): Promise<void> {
       accessToken: token.access_token,
       refreshToken: token.refresh_token ?? "",
       expiresAt: Date.now() + token.expires_in * 1000,
+      scope: token.scope ?? "",
     });
   } catch (error) {
     useSpotify.setState({ error: error instanceof Error ? error.message : String(error) });
@@ -175,6 +187,7 @@ async function validAuth(): Promise<Auth | null> {
         accessToken: token.access_token,
         refreshToken: token.refresh_token ?? auth.refreshToken,
         expiresAt: Date.now() + token.expires_in * 1000,
+        scope: token.scope ?? auth.scope,
       };
       setAuth(next);
       return next;
@@ -427,6 +440,22 @@ export async function play(target: { uris?: string[]; contextUri?: string; offse
   await withDevice((query) => api<void>(`/me/player/play${query}`, { method: "PUT", body }));
   const active = (await listDevices()).find((device) => device.is_active);
   return { device: active?.name ?? "another device", thisPc: false };
+}
+
+export interface RecentPlay {
+  track: SpotifyTrack;
+  /** ISO time (UTC) Spotify logged the play. */
+  played_at: string;
+}
+
+/**
+ * The account's recently played songs on every device, newest first: at most 50, only songs heard for
+ * at least 30 s. `after` (ms) returns only plays logged after that time.
+ */
+export async function getRecentlyPlayed(after?: number): Promise<RecentPlay[]> {
+  const query = after ? `&after=${after}` : "";
+  const data = await api<{ items: RecentPlay[] }>(`/me/player/recently-played?limit=50${query}`);
+  return data?.items ?? [];
 }
 
 export function addToQueue(uri: string) {

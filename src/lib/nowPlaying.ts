@@ -4,6 +4,8 @@ import { create } from "zustand";
 import { bangkokDateTime } from "@/lib/bangkok";
 import { startPlay, updatePlay, upsertTrack } from "@/lib/db/music";
 import { queryClient } from "@/lib/queryClient";
+import { useSpotify } from "@/lib/spotify";
+import { syncRecentlyPlayed } from "@/lib/spotifyHistory";
 
 /** What Spotify is playing on this PC, as the Rust side reads it from Windows' media controls. */
 export interface Track {
@@ -40,6 +42,7 @@ const POLL_VISIBLE_MS = 2000;
 const POLL_HIDDEN_MS = 6000;
 const LAST_KEY = "lastSpotifyTrack";
 const SKY_TINT_KEY = "musicSkyTint";
+const PULSE_KEY = "musicPulse";
 
 export const inApp = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 export const trackKey = (track: { title: string; artist: string }) => `${track.title}\u0000${track.artist}`;
@@ -71,6 +74,9 @@ interface NowPlayingState {
   /** Album colour in the sky (Music page setting). */
   skyTint: boolean;
   setSkyTint: (on: boolean) => void;
+  /** The album colour pulses with Spotify's sound (Music page setting; needs skyTint). */
+  pulse: boolean;
+  setPulse: (on: boolean) => void;
 }
 
 function readFlag(key: string, fallback: boolean): boolean {
@@ -99,6 +105,11 @@ export const useNowPlayingStore = create<NowPlayingState>((set) => ({
   setSkyTint: (on) => {
     writeFlag(SKY_TINT_KEY, on);
     set({ skyTint: on });
+  },
+  pulse: readFlag(PULSE_KEY, false),
+  setPulse: (on) => {
+    writeFlag(PULSE_KEY, on);
+    set({ pulse: on });
   },
 }));
 
@@ -169,12 +180,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  * A cover's colour: the average of its mid-tone pixels (very dark and very light ones are skipped, so a
  * black border or white type does not wash it out).
  */
-export const BLACK_COVER = "rgb(6 6 8)";
-
-export function isBlackCover(color: string | null): boolean {
-  return color === BLACK_COVER;
-}
-
 export async function coverColorOf(art: string): Promise<string | null> {
   const image = await loadImage(art);
   const size = 32;
@@ -196,16 +201,12 @@ export async function coverColorOf(art: string): Promise<string | null> {
   let ag = 0;
   let ab = 0;
   let an = 0;
-  let dark = 0;
-  let vivid = 0;
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i]!;
     const g = data[i + 1]!;
     const b = data[i + 2]!;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
-    if (max < 90) dark += 1;
-    if (max - min >= 0.18 * max && max >= 45) vivid += 1;
     if (max < 30 || min > 235) continue;
     ar += r;
     ag += g;
@@ -229,9 +230,6 @@ export async function coverColorOf(art: string): Promise<string | null> {
     s[2]! += b * w;
     s[3]! += w;
   }
-  // A black-and-white cover with black dominant is simply black (no grey average).
-  const total = size * size;
-  if (vivid < total * 0.12 && dark > total * 0.45) return BLACK_COVER;
   // Neighbouring buckets count together, so one hue split across a bucket edge is not outvoted.
   let best = -1;
   let bestScore = 0;
@@ -343,6 +341,9 @@ interface PlayLog {
   position: number | null;
 }
 
+/** How often Spotify's recently played list is read for plays on other devices. */
+const HISTORY_SYNC_MS = 5 * 60_000;
+
 /** Plays are saved every this much new listening (and when the song changes). */
 const SAVE_EVERY_MS = 15_000;
 
@@ -352,6 +353,19 @@ const SAVE_EVERY_MS = 15_000;
  * how long it was actually heard. Mount once, in the layout.
  */
 export function NowPlayingService() {
+  // Plays from the phone and other devices: read from Spotify when the app starts, after signing in, and
+  // every few minutes while it runs (also from the tray).
+  const scope = useSpotify((state) => state.auth?.scope);
+  useEffect(() => {
+    if (!inApp() || !scope) return;
+    const sync = () => void syncRecentlyPlayed().catch(() => {
+      // Offline or Spotify busy: the next round picks it up.
+    });
+    sync();
+    const timer = window.setInterval(sync, HISTORY_SYNC_MS);
+    return () => window.clearInterval(timer);
+  }, [scope]);
+
   const artFor = useRef<{ key: string; art: string | null } | null>(null);
   const log = useRef<PlayLog | null>(null);
   const writes = useRef<Promise<unknown>>(Promise.resolve());

@@ -1,4 +1,6 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   CalendarDays,
@@ -25,7 +27,7 @@ import { TrayEvents } from "@/components/TrayEvents";
 import { SkyOrb } from "@/components/ambient/SkyOrb";
 import { SHOW_TIME_DEBUG_PANEL, useWeather } from "@/lib/ambient";
 import { NowPlayingService } from "@/lib/nowPlaying";
-import { useSidebar } from "@/lib/sidebar";
+import { applyOrder, useSidebar } from "@/lib/sidebar";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
@@ -46,11 +48,15 @@ const SETTINGS_ITEM = { to: "/settings", label: "Settings", icon: Settings };
 const ROW = "relative flex h-10 items-center gap-3 overflow-hidden rounded-full px-3.5 text-sm font-medium whitespace-nowrap outline-none";
 const LABEL_FADE = "transition-opacity duration-200 ease-out motion-reduce:transition-none";
 
-function NavItem({ to, label, icon: Icon, compact }: { to: string; label: string; icon: LucideIcon; compact: boolean }) {
+type NavItemProps = { to: string; label: string; icon: LucideIcon; compact: boolean };
+
+function NavItem({ to, label, icon: Icon, compact }: NavItemProps) {
   return (
     <NavLink
       to={to}
       end={to === "/"}
+      // The browser's own link dragging would take over the pointer from the menu reordering.
+      draggable={false}
       title={compact ? label : undefined}
       className={({ isActive }) =>
         cn(
@@ -78,10 +84,93 @@ function NavItem({ to, label, icon: Icon, compact }: { to: string; label: string
 }
 
 /**
+ * A menu item that can be dragged up or down to reorder the menu. A press only becomes a drag after the
+ * pointer moves a few pixels, so a plain click still opens the page. Only vertical movement is applied.
+ */
+function SortableNavItem(props: NavItemProps) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.to });
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      className={cn("relative touch-none", isDragging && "z-10 cursor-grabbing opacity-80")}
+      style={{ transform: transform ? `translate3d(0, ${Math.round(transform.y)}px, 0)` : undefined, transition }}
+    >
+      <NavItem {...props} />
+    </div>
+  );
+}
+
+/** The main menu in the owner's order, reordered by dragging. */
+function MainNav({ compact }: { compact: boolean }) {
+  const { order, setOrder, setDragging } = useSidebar();
+  const items = useMemo(() => applyOrder(NAV_ITEMS, order), [order]);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // A drag ends with the pointer released over a link; that release must not also open the page (or
+  // reopen the current one). From the start of a drag until shortly after the drop, every click is
+  // swallowed at the window, before it can reach a link or the router.
+  const settle = useRef<number | undefined>(undefined);
+  const swallow = useRef<((event: MouseEvent) => void) | null>(null);
+  const release = () => {
+    if (swallow.current) window.removeEventListener("click", swallow.current, true);
+    swallow.current = null;
+  };
+  useEffect(() => () => {
+    window.clearTimeout(settle.current);
+    release();
+  }, []);
+  const start = () => {
+    window.clearTimeout(settle.current);
+    if (!swallow.current) {
+      swallow.current = (event: MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+      };
+      window.addEventListener("click", swallow.current, true);
+    }
+    setDragging(true);
+  };
+  const finish = () => {
+    window.clearTimeout(settle.current);
+    // Long enough for the click that follows the release and for the items to slide into place.
+    settle.current = window.setTimeout(() => {
+      release();
+      setDragging(false);
+    }, 320);
+  };
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    finish();
+    if (!over || active.id === over.id) return;
+    const paths = items.map((item) => item.to);
+    setOrder(arrayMove(paths, paths.indexOf(String(active.id)), paths.indexOf(String(over.id))));
+  };
+
+  return (
+    <nav aria-label="Main" className="flex flex-col gap-0.5">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={start}
+        onDragEnd={handleDragEnd}
+        onDragCancel={finish}
+      >
+        <SortableContext items={items.map((item) => item.to)} strategy={verticalListSortingStrategy}>
+          {items.map((item) => (
+            <SortableNavItem key={item.to} {...item} compact={compact} />
+          ))}
+        </SortableContext>
+      </DndContext>
+    </nav>
+  );
+}
+
+/**
  * The lit slab behind the active page in the sidebar. It is measured from the active link and glides to
  * the next one when the page changes, so moving between pages reads as one continuous motion.
  */
-function useActiveSlab(asideRef: React.RefObject<HTMLElement | null>, pathname: string) {
+function useActiveSlab(asideRef: React.RefObject<HTMLElement | null>, pathname: string, order: string[], dragging: boolean) {
   const [slab, setSlab] = useState<{ top: number; height: number } | null>(null);
   const [placed, setPlaced] = useState(false);
 
@@ -99,7 +188,25 @@ function useActiveSlab(asideRef: React.RefObject<HTMLElement | null>, pathname: 
     const observer = new ResizeObserver(measure);
     observer.observe(aside);
     return () => observer.disconnect();
-  }, [asideRef, pathname]);
+  }, [asideRef, pathname, order]);
+
+  // While the menu is being reordered the slab sticks to the active item, measured every frame, so it
+  // rides along when that item is dragged or slides aside for another one.
+  useLayoutEffect(() => {
+    const aside = asideRef.current;
+    if (!dragging || !aside) return;
+    let frame = 0;
+    const follow = () => {
+      const active = aside.querySelector<HTMLElement>('a[aria-current="page"]');
+      if (active) {
+        const top = active.getBoundingClientRect().top - aside.getBoundingClientRect().top;
+        setSlab((current) => (current && current.top === top ? current : { top, height: active.offsetHeight }));
+      }
+      frame = requestAnimationFrame(follow);
+    };
+    frame = requestAnimationFrame(follow);
+    return () => cancelAnimationFrame(frame);
+  }, [asideRef, dragging]);
 
   useLayoutEffect(() => {
     if (slab && !placed) {
@@ -144,12 +251,12 @@ function usePageEntrance(pageRef: React.RefObject<HTMLElement | null>, pathname:
 
 export function Layout() {
   const location = useLocation();
-  const { compact, setCompact } = useSidebar();
+  const { compact, setCompact, order, dragging } = useSidebar();
   const rain = useWeather((state) => state.rain);
   const asideRef = useRef<HTMLElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const veilRef = useRef<HTMLDivElement>(null);
-  const { slab, placed } = useActiveSlab(asideRef, location.pathname);
+  const { slab, placed } = useActiveSlab(asideRef, location.pathname, order, dragging);
   usePageEntrance(pageRef, location.pathname);
 
   const section = [...NAV_ITEMS, SETTINGS_ITEM].find((item) =>
@@ -194,7 +301,7 @@ export function Layout() {
               aria-hidden="true"
               className={cn(
                 "pointer-events-none absolute right-2 left-2 top-0 rounded-full bg-white/75 shadow-[inset_0_1px_0_var(--glass-edge),inset_0_0_0_1px_color-mix(in_srgb,var(--sky-accent)_45%,transparent),0_2px_10px_-6px_rgb(0_0_0/0.3)] dark:bg-white/[0.14]",
-                placed && "transition-[translate] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+                placed && !dragging && "transition-[translate] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
               )}
               style={{ translate: `0 ${slab.top}px`, height: slab.height }}
             />
@@ -209,11 +316,7 @@ export function Layout() {
               Daylight
             </span>
           </div>
-          <nav aria-label="Main" className="flex flex-col gap-0.5">
-            {NAV_ITEMS.map((item) => (
-              <NavItem key={item.to} {...item} compact={compact} />
-            ))}
-          </nav>
+          <MainNav compact={compact} />
           <div className="mt-auto flex flex-col gap-0.5 border-t border-foreground/10 pt-2">
             <button
               type="button"

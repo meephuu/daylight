@@ -40,6 +40,7 @@ mod imp {
     use windows::Media::MediaPlaybackAutoRepeatMode as Repeat;
     use windows::Storage::Streams::{DataReader, IRandomAccessStreamReference};
     use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::Media::Audio::Endpoints::IAudioMeterInformation;
     use windows::Win32::Media::Audio::{
         eConsole, eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
         MMDeviceEnumerator,
@@ -184,6 +185,18 @@ mod imp {
 
     /// Spotify's audio sessions on the default speakers (it can have more than one).
     fn spotify_volumes() -> windows::core::Result<Vec<ISimpleAudioVolume>> {
+        spotify_sessions(|control| control.cast::<ISimpleAudioVolume>())
+    }
+
+    /// The level meters of Spotify's audio sessions: the bars that bounce in the Windows volume mixer.
+    fn spotify_meters() -> windows::core::Result<Vec<IAudioMeterInformation>> {
+        spotify_sessions(|control| control.cast::<IAudioMeterInformation>())
+    }
+
+    /// Runs `pick` on each of Spotify's audio sessions on the default speakers.
+    fn spotify_sessions<T>(
+        pick: impl Fn(&windows::Win32::Media::Audio::IAudioSessionControl) -> windows::core::Result<T>,
+    ) -> windows::core::Result<Vec<T>> {
         unsafe {
             let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
             let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
@@ -195,7 +208,7 @@ mod imp {
                 let Ok(control2) = control.cast::<IAudioSessionControl2>() else { continue };
                 let Ok(pid) = control2.GetProcessId() else { continue };
                 if is_spotify_process(pid) {
-                    found.push(control.cast::<ISimpleAudioVolume>()?);
+                    found.push(pick(&control)?);
                 }
             }
             Ok(found)
@@ -226,10 +239,36 @@ mod imp {
         };
         write().map_err(|error| error.to_string())
     }
+
+    /// Reads Spotify's level meter ~30 times a second and hands each peak (0..1) to `emit`, until
+    /// `running` turns false. The session list is looked up again every 2 s (Spotify opens new ones).
+    pub fn pulse_loop(running: &std::sync::atomic::AtomicBool, emit: impl Fn(f32)) {
+        use std::sync::atomic::Ordering;
+        use std::time::{Duration, Instant};
+        init();
+        let mut meters: Vec<IAudioMeterInformation> = Vec::new();
+        let mut looked_up = Instant::now() - Duration::from_secs(10);
+        while running.load(Ordering::Relaxed) {
+            if looked_up.elapsed() >= Duration::from_secs(2) {
+                meters = spotify_meters().unwrap_or_default();
+                looked_up = Instant::now();
+            }
+            let peak = meters
+                .iter()
+                .filter_map(|meter| unsafe { meter.GetPeakValue().ok() })
+                .fold(0.0_f32, f32::max);
+            emit(peak);
+            std::thread::sleep(Duration::from_millis(33));
+        }
+    }
 }
 
 #[cfg(windows)]
-pub use imp::{control, now_playing, set_volume, volume};
+pub use imp::{control, now_playing, pulse_loop, set_volume, volume};
+
+/// Windows only: elsewhere there is no level to read.
+#[cfg(not(windows))]
+pub fn pulse_loop(_running: &std::sync::atomic::AtomicBool, _emit: impl Fn(f32)) {}
 
 /// Windows only: elsewhere there is simply nothing playing.
 #[cfg(not(windows))]

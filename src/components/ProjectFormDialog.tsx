@@ -57,7 +57,7 @@ function ProjectForm({ project, onDone }: { project: Project | null; onDone: () 
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: project?.name ?? "",
-      color: project?.color ?? "#6366f1",
+      color: project?.color ?? "#3b82f6",
       description: project?.description ?? "",
     },
   });
