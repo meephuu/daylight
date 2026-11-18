@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { bangkokDateTime } from "@/lib/bangkok";
 import { addFocusSession } from "@/lib/db/focus";
+import { playChime, primeChime } from "@/lib/focusChime";
 import { queryClient } from "@/lib/queryClient";
 
 /**
@@ -98,6 +99,12 @@ interface FocusState extends Persisted {
   settings: FocusSettings;
   /** A focus session for a task just ran out: the page asks whether the task is done. */
   finished: FocusTask | null;
+  /**
+   * A focus run just ran out (not stopped, not a break): when (Unix ms), and whether focus mode was open.
+   * If it was, focus mode stays open for CELEBRATE_MS to celebrate on its big ring, then closes; otherwise
+   * the page's ring celebrates. Not saved.
+   */
+  celebrate: { at: number; inFocusMode: boolean } | null;
   setSettings: (settings: FocusSettings) => void;
   setTask: (task: FocusTask | null) => void;
   setPhase: (phase: FocusPhase) => void;
@@ -119,6 +126,14 @@ interface FocusState extends Persisted {
 
 const STORAGE_KEY = "focusTimer";
 
+/** How long focus mode stays open to celebrate a focus run that ran out, before it closes. */
+export const CELEBRATE_MS = 2000;
+
+/** True while a focus run that just ran out is being celebrated (for `CELEBRATE_MS`). */
+export function isCelebrating(celebrate: { at: number } | null, now: number): boolean {
+  return celebrate !== null && now - celebrate.at < CELEBRATE_MS + 500;
+}
+
 const FRESH: Persisted = {
   phase: "focus",
   status: "idle",
@@ -138,6 +153,8 @@ function readPersisted(): Persisted {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return FRESH;
     const value = { ...FRESH, ...(JSON.parse(raw) as Partial<Persisted>) };
+    // Focus mode only ever stays open past a run for its few seconds of celebration.
+    if (!isUnderway(value)) value.focusMode = false;
     // Saved by an earlier version with short and long breaks.
     if (value.phase !== "focus" && value.phase !== "break") value.phase = "break";
     return value;
@@ -191,6 +208,7 @@ export const useFocusTimer = create<FocusState>((set, get) => ({
   ...readPersisted(),
   settings: FOCUS_DEFAULTS,
   finished: null,
+  celebrate: null,
 
   setSettings: (settings) => {
     const state = get();
@@ -217,6 +235,7 @@ export const useFocusTimer = create<FocusState>((set, get) => ({
     const state = get();
     if (state.status === "running") return;
     const now = Date.now();
+    primeChime();
     set({
       status: "running",
       endsAt: now + state.remainingMs,
@@ -272,7 +291,16 @@ export const useFocusTimer = create<FocusState>((set, get) => ({
     const state = get();
     if (state.status !== "running" || state.endsAt === null || now < state.endsAt) return;
     void logRun(state, true, state.endsAt);
-    if (state.phase === "focus") set({ ...ready(state.settings, "break"), finished: state.task });
+    if (!IS_MINI_WINDOW) playChime(state.phase);
+    if (state.phase === "focus") {
+      const at = Date.now();
+      set({ ...ready(state.settings, "break"), focusMode: state.focusMode, finished: state.task, celebrate: { at, inFocusMode: state.focusMode } });
+      // Focus mode stays up for the celebration, then closes (here, so it closes even if the page is left).
+      if (state.focusMode)
+        window.setTimeout(() => {
+          if (get().celebrate?.at === at && !isUnderway(get())) set({ focusMode: false });
+        }, CELEBRATE_MS);
+    }
     else set({ ...ready(state.settings, "focus") });
   },
 

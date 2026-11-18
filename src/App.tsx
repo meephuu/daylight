@@ -7,6 +7,7 @@ import ExpensesPage from "@/pages/Expenses";
 import FocusPage from "@/pages/Focus";
 import HabitsPage from "@/pages/Habits";
 import HomePage from "@/pages/Home";
+import MiniPlayer from "@/pages/MiniPlayer";
 import MiniTimer from "@/pages/MiniTimer";
 import MusicPage from "@/pages/Music";
 import NotesPage from "@/pages/Notes";
@@ -22,6 +23,8 @@ export default function App() {
         <Routes>
           {/* The mini timer window: no shell, just the timer. */}
           <Route path="mini" element={<MiniTimer />} />
+          {/* The mini player window (Music page): no shell, just the player. */}
+          <Route path="mini-player" element={<MiniPlayer />} />
           <Route element={<Layout />}>
             <Route index element={<HomePage />} />
             <Route path="tasks" element={<TasksPage />} />

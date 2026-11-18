@@ -1,16 +1,45 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ArrowUpRight, Pause, Play, X } from "lucide-react";
 import { useNow } from "@/components/focus/FocusStage";
-import { formatClock, PHASE_LABELS, remainingAt, useFocusTimer } from "@/lib/focus";
+import { CELEBRATE_MS, formatClock, isUnderway, PHASE_LABELS, remainingAt, useFocusTimer } from "@/lib/focus";
 import { applySharedSkyColors, sendTimerCommand, showMainWindow, SKY_COLORS_KEY } from "@/lib/miniTimer";
 import { cn } from "@/lib/utils";
 
 const ICON_BUTTON =
-  "grid size-7 place-items-center rounded-full text-foreground/60 outline-none transition-colors hover:bg-foreground/12 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60";
+  "grid size-[22px] place-items-center rounded-full text-foreground/60 outline-none transition-colors hover:bg-foreground/12 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60";
 
 const R = 22;
 const STROKE = 4;
+
+/**
+ * When the main window's focus run runs out (not stopped or skipped; breaks end quietly): the moment it
+ * did, for CELEBRATE_MS, else null. This window only sees the saved timer, so it reads the change itself:
+ * a running focus run whose time was up, followed by a break that has not started.
+ */
+function useFocusDone(): number | null {
+  const [doneAt, setDoneAt] = useState<number | null>(null);
+  useEffect(
+    () =>
+      useFocusTimer.subscribe((state, before) => {
+        const ranOut =
+          before.phase === "focus" &&
+          before.status === "running" &&
+          before.endsAt !== null &&
+          Date.now() >= before.endsAt - 1500 &&
+          state.phase === "break" &&
+          !isUnderway(state);
+        if (ranOut) setDoneAt(Date.now());
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (doneAt === null) return;
+    const id = window.setTimeout(() => setDoneAt(null), CELEBRATE_MS);
+    return () => window.clearTimeout(id);
+  }, [doneAt]);
+  return doneAt;
+}
 
 /**
  * The mini timer (its own small window, always on top of other apps; see lib/miniTimer.ts). A slab of
@@ -20,11 +49,13 @@ const STROKE = 4;
  */
 export default function MiniTimer() {
   const timer = useFocusTimer();
+  const doneAt = useFocusDone();
+  const celebrating = doneAt !== null;
   const running = timer.status === "running";
   const now = useNow(running);
-  const left = remainingAt(timer, now);
-  const progress = timer.durationMs > 0 ? left / timer.durationMs : 0;
-  const onBreak = timer.phase === "break";
+  const left = celebrating ? 0 : remainingAt(timer, now);
+  const progress = celebrating ? 0 : timer.durationMs > 0 ? left / timer.durationMs : 0;
+  const onBreak = !celebrating && timer.phase === "break";
 
   // A see-through window: only the slab is drawn.
   useLayoutEffect(() => {
@@ -51,7 +82,7 @@ export default function MiniTimer() {
     };
   }, []);
 
-  const label = timer.task && !onBreak ? timer.task.title : PHASE_LABELS[timer.phase];
+  const label = celebrating ? "Time's up" : timer.task && !onBreak ? timer.task.title : PHASE_LABELS[timer.phase];
   const circumference = 2 * Math.PI * R;
 
   return (
@@ -66,6 +97,8 @@ export default function MiniTimer() {
             "linear-gradient(160deg, color-mix(in srgb, var(--sky-accent) 14%, transparent), transparent 70%), color-mix(in srgb, color-mix(in srgb, var(--sky-mid) 40%, rgb(8 11 32)) 93%, transparent)",
         }}
       >
+        {/* A focus run ran out: a light of the hour's accent washes over the slab and fades. */}
+        {celebrating && <span key={doneAt} className="mini-done-flash pointer-events-none absolute inset-0 rounded-[22px]" aria-hidden="true" />}
         {/* The ring, with play / pause inside it. */}
         <button
           type="button"
@@ -92,6 +125,13 @@ export default function MiniTimer() {
               )}
             />
           </svg>
+          {/* ...and two rings swell out of it, like the Focus page's. */}
+          {celebrating && (
+            <span key={doneAt} className="pointer-events-none absolute inset-0" aria-hidden="true">
+              <span className="mini-done-ring absolute inset-[4px] rounded-full border-[3px] border-sky-accent" />
+              <span className="mini-done-ring absolute inset-[4px] rounded-full border-2 border-sky-accent [animation-delay:240ms]" />
+            </span>
+          )}
           {running ? <Pause className="size-4" fill="currentColor" /> : <Play className="ml-0.5 size-4" fill="currentColor" />}
         </button>
 
@@ -106,9 +146,9 @@ export default function MiniTimer() {
         </div>
 
         {/* On hover: back to Daylight, close. */}
-        <div className="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+        <div className="absolute top-1 right-2 flex gap-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
           <button type="button" className={ICON_BUTTON} onClick={showMainWindow} aria-label="Open Daylight" title="Open Daylight">
-            <ArrowUpRight className="size-3.5" />
+            <ArrowUpRight className="size-3" />
           </button>
           <button
             type="button"
@@ -117,7 +157,7 @@ export default function MiniTimer() {
             aria-label="Close the mini timer"
             title="Close the mini timer"
           >
-            <X className="size-3.5" />
+            <X className="size-3" />
           </button>
         </div>
       </div>

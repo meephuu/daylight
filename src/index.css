@@ -739,6 +739,95 @@
 }
 
 /*
+ * A focus run ran out (FocusStage's Celebration): two rings swell out of the timer's ring and fade, and a
+ * soft light of the sky accent blooms behind the clock, once. Hidden before and after (fill both).
+ * Reduced motion: only the light, as a fade.
+ */
+@keyframes focus-done-ring {
+  0% {
+    opacity: 1;
+    scale: 1;
+  }
+  35% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.2;
+  }
+}
+@keyframes focus-done-glow {
+  0% {
+    opacity: 0;
+    scale: 0.9;
+  }
+  30% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.08;
+  }
+}
+.focus-done-ring {
+  animation: focus-done-ring 1700ms var(--ease-out) both;
+}
+.focus-done-glow {
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--sky-accent) 38%, transparent), transparent);
+  animation: focus-done-glow 2000ms var(--ease-out) both;
+}
+/* The mini timer's version: its small ring swells further (it is 48px), and the slab lights up. */
+@keyframes mini-done-ring {
+  0% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.55;
+  }
+}
+@keyframes mini-done-flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.mini-done-ring {
+  animation: mini-done-ring 1400ms var(--ease-out) both;
+}
+.mini-done-flash {
+  background: radial-gradient(120% 140% at 12% 50%, color-mix(in oklab, var(--sky-accent) 42%, transparent), transparent 70%);
+  animation: mini-done-flash 1800ms var(--ease-out) both;
+}
+[data-motion="reduce"] .mini-done-ring {
+  animation: none;
+  opacity: 0;
+}
+[data-motion="reduce"] .focus-done-ring {
+  animation: none;
+  opacity: 0;
+}
+[data-motion="reduce"] .focus-done-glow {
+  animation-name: fade-out-glow;
+  scale: 1;
+}
+@keyframes fade-out-glow {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.6;
+  }
+}
+
+/*
  * Reduced motion: nothing moves or blurs. Arrivals become a short fade, so a state change is still
  * visible; the stars and the sky's own transitions stop. Keyed to <html data-motion="reduce">, which
  * lib/motion.ts sets from Settings > Animations (following Windows by default).

@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CloudRain, Pause, PictureInPicture2, Play, SkipForward, Square, X } from "lucide-react";
-import { Clock, Ring, useNow } from "@/components/focus/FocusStage";
+import { CelebrationRings, Clock, Ring, useNow } from "@/components/focus/FocusStage";
 import { useWeather } from "@/lib/ambient";
-import { formatClock, PHASE_LABELS, remainingAt, useFocusTimer } from "@/lib/focus";
+import { formatClock, isCelebrating, PHASE_LABELS, remainingAt, useFocusTimer } from "@/lib/focus";
 import { openMiniTimer } from "@/lib/miniTimer";
 import { startRain, stopRain } from "@/lib/rainSound";
 import { cn } from "@/lib/utils";
@@ -45,8 +45,11 @@ export function FocusMode({ active, onClosed }: { active: boolean; onClosed: () 
   const running = timer.status === "running";
   const paused = timer.status === "paused";
   const now = useNow(running);
-  const left = remainingAt(timer, now);
-  const progress = timer.durationMs > 0 ? left / timer.durationMs : 0;
+  // A focus run just ran out with focus mode open: it stays a moment at 00:00 to celebrate, then closes
+  // (the timer store closes it), the clock rolling on to the break as the ring flies back.
+  const celebrating = active && timer.celebrate?.inFocusMode === true && isCelebrating(timer.celebrate, Date.now());
+  const left = celebrating ? 0 : remainingAt(timer, now);
+  const progress = celebrating ? 0 : timer.durationMs > 0 ? left / timer.durationMs : 0;
 
   const veilRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -248,11 +251,12 @@ export function FocusMode({ active, onClosed }: { active: boolean; onClosed: () 
             className={cn("absolute inset-[4%] rounded-full transition-opacity duration-700", running ? "focus-breathe" : "opacity-0")}
             style={{ background: "radial-gradient(circle, color-mix(in srgb, var(--sky-accent) 30%, transparent) 0%, transparent 68%)" }}
           />
-          <Ring progress={progress} running={running} onBreak={timer.phase === "break"} />
-          <div className="relative flex flex-col items-center" role="timer" aria-label={`${formatClock(left)} left`}>
+          {celebrating && timer.celebrate && <CelebrationRings at={timer.celebrate.at} />}
+          <Ring progress={progress} running={running} onBreak={!celebrating && timer.phase === "break"} />
+          <div className="relative flex flex-col items-center" role="timer" aria-label={celebrating ? "Time is up" : `${formatClock(left)} left`}>
             <Clock ms={left} dimmed={paused} rolling />
             <span className="mt-[3cqw] flex items-center gap-1.5 text-[max(14px,3.2cqw)] text-muted-foreground">
-              {PHASE_LABELS[timer.phase]}
+              {celebrating ? "Time's up" : PHASE_LABELS[timer.phase]}
               {paused && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -263,7 +267,7 @@ export function FocusMode({ active, onClosed }: { active: boolean; onClosed: () 
           </div>
         </div>
 
-        <div ref={controlsRef} className="flex h-20 items-center gap-4">
+        <div ref={controlsRef} className={cn("flex h-20 items-center gap-4 transition-opacity duration-300", celebrating && "pointer-events-none opacity-0")}>
           {paused && (
             <button
               type="button"

@@ -290,14 +290,19 @@ fn focus_schedule(app: AppHandle, at_ms: u64, title: String, body: String) {
 const MINI_LABEL: &str = "mini";
 const MINI_WIDTH: f64 = 264.0;
 const MINI_HEIGHT: f64 = 92.0;
+const PLAYER_LABEL: &str = "player";
+const PLAYER_WIDTH: f64 = 380.0;
+const PLAYER_HEIGHT: f64 = 92.0;
+/// Room between the screen's edge and the floating windows, and between the two.
+const FLOAT_MARGIN: f64 = 24.0;
+const FLOAT_GAP: f64 = 10.0;
 
-/// Opens (or closes) the mini timer: a small frameless window that stays on top of other apps, in the
-/// top-right corner of the screen, showing the Focus timer (the /mini route).
-/// Must be async: building a window from a synchronous command deadlocks the app on Windows (the
-/// command would hold the main thread that the new window needs).
-#[tauri::command]
-async fn focus_mini(app: AppHandle, open: bool) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window(MINI_LABEL) {
+/// Opens (or closes) one of the floating windows: small, frameless and see-through, always on top of
+/// other apps, in the top-right corner of the screen the main window is on, `top` below the margin.
+/// Must be called from an async command: building a window from a synchronous command deadlocks the app
+/// on Windows (the command would hold the main thread that the new window needs).
+fn open_floating(app: &AppHandle, label: &str, route: &str, title: &str, width: f64, height: f64, top: f64, open: bool) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(label) {
         if open {
             let _ = window.show();
             let _ = window.set_focus();
@@ -309,9 +314,9 @@ async fn focus_mini(app: AppHandle, open: bool) -> Result<(), String> {
     if !open {
         return Ok(());
     }
-    let mut builder = tauri::WebviewWindowBuilder::new(&app, MINI_LABEL, tauri::WebviewUrl::App("mini".into()))
-        .title("Daylight focus")
-        .inner_size(MINI_WIDTH, MINI_HEIGHT)
+    let mut builder = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App(route.into()))
+        .title(title)
+        .inner_size(width, height)
         .resizable(false)
         .maximizable(false)
         .minimizable(false)
@@ -321,7 +326,6 @@ async fn focus_mini(app: AppHandle, open: bool) -> Result<(), String> {
         .always_on_top(true)
         .skip_taskbar(true)
         .focused(false);
-    // Top-right of the screen the main window is on, clear of the edge.
     let monitor = app
         .get_webview_window("main")
         .and_then(|main| main.current_monitor().ok().flatten())
@@ -330,10 +334,23 @@ async fn focus_mini(app: AppHandle, open: bool) -> Result<(), String> {
         let scale = monitor.scale_factor();
         let origin = monitor.position().to_logical::<f64>(scale);
         let size = monitor.size().to_logical::<f64>(scale);
-        builder = builder.position(origin.x + size.width - MINI_WIDTH - 24.0, origin.y + 24.0);
+        builder = builder.position(origin.x + size.width - width - FLOAT_MARGIN, origin.y + FLOAT_MARGIN + top);
     }
     builder.build().map_err(|error| error.to_string())?;
     Ok(())
+}
+
+/// Opens (or closes) the mini timer, showing the Focus timer (the /mini route).
+#[tauri::command]
+async fn focus_mini(app: AppHandle, open: bool) -> Result<(), String> {
+    open_floating(&app, MINI_LABEL, "mini", "Daylight focus", MINI_WIDTH, MINI_HEIGHT, 0.0, open)
+}
+
+/// Opens (or closes) the mini player, showing what Spotify plays (the /mini-player route). It sits under
+/// the mini timer's spot, so the two never cover each other.
+#[tauri::command]
+async fn music_mini(app: AppHandle, open: bool) -> Result<(), String> {
+    open_floating(&app, PLAYER_LABEL, "mini-player", "Daylight music", PLAYER_WIDTH, PLAYER_HEIGHT, MINI_HEIGHT + FLOAT_GAP, open)
 }
 
 /// Brings the main window up (from the mini timer).
@@ -484,10 +501,11 @@ pub fn run() {
             focus_tray,
             focus_schedule,
             focus_mini,
+            music_mini,
             show_main
         ])
         .on_window_event(|window, event| {
-            // Only the main window hides to the tray; the mini timer really closes.
+            // Only the main window hides to the tray; the floating windows really close.
             if window.label() != "main" {
                 return;
             }

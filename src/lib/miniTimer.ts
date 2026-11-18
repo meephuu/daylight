@@ -10,6 +10,11 @@ export function openMiniTimer(open = true): void {
   invoke("focus_mini", { open }).catch(() => {});
 }
 
+/** The mini player: the same kind of floating window for what Spotify plays (src-tauri music_mini, /mini-player). */
+export function openMiniPlayer(open = true): void {
+  invoke("music_mini", { open }).catch(() => {});
+}
+
 export function sendTimerCommand(command: "focus-toggle" | "focus-skip"): void {
   emit(command).catch(() => {});
 }

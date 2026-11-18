@@ -9,6 +9,7 @@ import {
   clockParts,
   FOCUS_SETTING_KEYS,
   formatClock,
+  isCelebrating,
   isUnderway,
   LENGTH_PRESETS,
   PHASE_LABELS,
@@ -79,6 +80,29 @@ export function Ring({ progress, running, onBreak }: { progress: number; running
       />
     </svg>
   );
+}
+
+/**
+ * A focus run just ran out: two rings of the sky accent swell out of the ring and fade, and a soft light
+ * blooms behind the clock, once. Keyed by the moment it ended, so each run gets its own. Used by the page's
+ * ring and by focus mode's big ring (whichever was showing). Breaks end quietly.
+ */
+export function CelebrationRings({ at }: { at: number }) {
+  return (
+    <div key={at} className="pointer-events-none absolute inset-0" aria-hidden="true">
+      <span className="focus-done-glow absolute inset-[-8%] rounded-full" />
+      <span className="focus-done-ring absolute inset-0 rounded-full border-4 border-sky-accent" />
+      <span className="focus-done-ring absolute inset-0 rounded-full border-[3px] border-sky-accent [animation-delay:260ms]" />
+    </div>
+  );
+}
+
+/** The page's celebration: only when focus mode was not open (it celebrates there), and not replayed later. */
+function Celebration() {
+  const celebrate = useFocusTimer((state) => state.celebrate);
+  const [shownAt] = useState(() => Date.now());
+  if (!celebrate || celebrate.inFocusMode || !isCelebrating(celebrate, shownAt)) return null;
+  return <CelebrationRings at={celebrate.at} />;
 }
 
 /** After a focus session for a task runs out: is the task done? */
@@ -261,6 +285,7 @@ export function FocusStage({
         id="focus-ring-inline"
         className={cn("@container relative grid aspect-square w-full max-w-[340px] place-items-center", hideRing && "invisible")}
       >
+        <Celebration />
         <Ring progress={progress} running={running} onBreak={onBreak} />
         <div className="flex flex-col items-center" role="timer" aria-label={`${formatClock(left)} left`}>
           <Clock ms={left} dimmed={timer.status === "paused"} />
