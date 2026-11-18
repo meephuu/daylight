@@ -113,6 +113,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/015_focus_session_notes.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 16,
+            description: "focus sessions rebuild",
+            sql: include_str!("../migrations/016_focus_sessions_rebuild.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -437,6 +443,7 @@ pub fn run() {
     backup_database_once(&context.config().identifier, "before-music-history");
     backup_database_once(&context.config().identifier, "before-focus-sessions");
     backup_database_once(&context.config().identifier, "before-focus-notes");
+    backup_database_once(&context.config().identifier, "before-focus-rebuild");
 
     tauri::Builder::default()
         // Must be registered first. A second launch just surfaces the running window instead of

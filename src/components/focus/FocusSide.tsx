@@ -73,9 +73,9 @@ export function TodayPane({
   const focused = sessions.reduce((sum, session) => sum + session.focusedSeconds, 0);
   const goalShare = Math.min(1, focused / (goalMin * 60));
 
-  // The strip spans 08:00 to 22:00, widened to fit sessions outside those hours.
+  // The strip spans 08:00 to midnight, widened to fit sessions outside those hours.
   const startHour = Math.min(8, ...sessions.map((session) => Math.floor(minutesOf(session.startedAt) / 60)));
-  const endHour = Math.max(22, ...sessions.map((session) => Math.ceil(minutesOf(session.endedAt) / 60)));
+  const endHour = Math.max(24,...sessions.map((session) => Math.ceil(minutesOf(session.endedAt) / 60)));
   const span = (endHour - startHour) * 60;
   const ticks: number[] = [];
   for (let hour = startHour; hour <= endHour; hour += 2) ticks.push(hour);
