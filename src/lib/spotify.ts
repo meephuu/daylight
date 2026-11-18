@@ -19,6 +19,9 @@ const SCOPES = [
   "playlist-read-collaborative",
   // Songs played on any device (the phone too), for the listening history.
   "user-read-recently-played",
+  // Adding the playing song to a playlist.
+  "playlist-modify-public",
+  "playlist-modify-private",
 ].join(" ");
 const STORAGE_KEY = "spotifyAuth";
 const API = "https://api.spotify.com/v1";
@@ -36,6 +39,12 @@ interface Auth {
 /** Whether this sign-in may read the recently played list (sign-ins before it was added need redoing). */
 export function canReadHistory(auth: Auth | null): boolean {
   return !!auth?.scope?.split(" ").includes("user-read-recently-played");
+}
+
+/** Whether this sign-in may add songs to playlists (sign-ins before it was added need redoing). */
+export function canEditPlaylists(auth: Auth | null): boolean {
+  const scopes = auth?.scope?.split(" ") ?? [];
+  return scopes.includes("playlist-modify-public") && scopes.includes("playlist-modify-private");
 }
 
 function readAuth(): Auth | null {
@@ -251,7 +260,10 @@ export interface SpotifyPlaylist {
   uri: string;
   name: string;
   images: SpotifyImage[] | null;
-  owner: { display_name?: string };
+  owner: { id?: string; display_name?: string };
+  collaborative?: boolean;
+  /** Changes whenever the playlist does. */
+  snapshot_id?: string;
   tracks?: { total: number };
   items?: { total: number };
 }
@@ -329,6 +341,74 @@ export async function findTrack(title: string, artist: string): Promise<SpotifyT
   return (
     tracks.find((track) => titleMatches(track) && artistMatches(track)) ?? tracks.find(titleMatches) ?? tracks[0] ?? null
   );
+}
+
+/** The signed-in account's Spotify user id. */
+export async function getMyId(): Promise<string> {
+  return (await api<{ id: string }>("/me")).id;
+}
+
+/** Playlists a song can be added to: the account's own and collaborative ones. */
+export function canAddTo(playlist: SpotifyPlaylist, myId: string | undefined): boolean {
+  return !!playlist.collaborative || (!!myId && playlist.owner.id === myId);
+}
+
+/**
+ * The song Windows reports as playing (title and artist), on Spotify: what Spotify says is playing when
+ * that is the same song (so the exact version), else the best search match.
+ */
+export async function findPlayingTrack(title: string, artist: string): Promise<SpotifyTrack | null> {
+  try {
+    const data = await api<{ item?: SpotifyTrack | null } | undefined>("/me/player/currently-playing");
+    const item = data?.item;
+    if (item?.uri?.startsWith("spotify:track") && plain(item.name) === plain(title)) return item;
+  } catch {
+    // Fall back to searching.
+  }
+  return findTrack(title, artist);
+}
+
+/** Every song URI in a playlist (all pages), for telling whether a song is already in it. */
+export async function getPlaylistUris(id: string): Promise<string[]> {
+  type Row = { track?: { uri?: string } | null; item?: { uri?: string } | null };
+  type Page = { items: Row[]; next: string | null };
+  let page: Page;
+  try {
+    page = await api<Page>(`/playlists/${id}/items?limit=100`);
+  } catch (error) {
+    if (!(error instanceof SpotifyError) || error.status !== 404) throw error;
+    page = await api<Page>(`/playlists/${id}/tracks?limit=100`);
+  }
+  const uris: string[] = [];
+  for (let pages = 0; ; pages++) {
+    for (const row of page.items) {
+      const uri = (row.item ?? row.track)?.uri;
+      if (uri) uris.push(uri);
+    }
+    if (!page.next || pages >= 50) return uris;
+    page = await api<Page>(page.next);
+  }
+}
+
+/** Adds a song to the end of a playlist (newer API name first, then the older one). */
+export async function addToPlaylist(playlistId: string, uri: string): Promise<void> {
+  const init = { method: "POST", body: JSON.stringify({ uris: [uri] }) };
+  try {
+    await api<unknown>(`/playlists/${playlistId}/items`, init);
+  } catch (error) {
+    if (!(error instanceof SpotifyError) || error.status !== 404) throw error;
+    await api<unknown>(`/playlists/${playlistId}/tracks`, init);
+  }
+}
+
+/** Removes every copy of a song from a playlist (newer API name and body first, then the older ones). */
+export async function removeFromPlaylist(playlistId: string, uri: string): Promise<void> {
+  try {
+    await api<unknown>(`/playlists/${playlistId}/items`, { method: "DELETE", body: JSON.stringify({ items: [{ uri }] }) });
+  } catch (error) {
+    if (!(error instanceof SpotifyError) || (error.status !== 404 && error.status !== 400)) throw error;
+    await api<unknown>(`/playlists/${playlistId}/tracks`, { method: "DELETE", body: JSON.stringify({ tracks: [{ uri }] }) });
+  }
 }
 
 /** An artist's photo from Spotify, found by name (the best match), or null. */

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Music2, Pause, PictureInPicture2, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Volume1, Volume2, VolumeX } from "lucide-react";
+import { AddToPlaylistMenu } from "@/components/music/AddToPlaylistMenu";
 import { openMiniPlayer } from "@/lib/miniTimer";
 import { formatTrackTime, inApp, media, type RepeatMode, type Track } from "@/lib/nowPlaying";
 import { cn } from "@/lib/utils";
@@ -127,6 +128,8 @@ export function PlayerControls({ track, position, color, art, className }: Playe
             {track ? track.artist : "Open Spotify on this PC and play something."}
           </p>
         </div>
+        {/* Add the song to one of your Spotify playlists. */}
+        <AddToPlaylistMenu track={track} className={cn(ROUND_BUTTON, "self-start -mt-1 -mr-1 text-foreground/65")} />
         {/* The mini player: a small window on top of other apps, like the Focus page's mini timer. */}
         <button
           type="button"
