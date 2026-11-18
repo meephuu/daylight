@@ -14,6 +14,7 @@ import {
   Repeat,
   Settings,
   StickyNote,
+  Timer,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import { GlassRain } from "@/components/ambient/GlassRain";
 import { SkyBackground } from "@/components/ambient/SkyBackground";
 import { TimeOfDayDebugPanel } from "@/components/ambient/TimeOfDayDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FocusService } from "@/components/focus/FocusService";
 import { Toaster } from "@/components/Toaster";
 import { TitleBar } from "@/components/TitleBar";
 import { TrayEvents } from "@/components/TrayEvents";
@@ -35,6 +37,7 @@ const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/notes", label: "Notes", icon: StickyNote },
+  { to: "/focus", label: "Focus", icon: Timer },
   { to: "/habits", label: "Habits", icon: Repeat },
   { to: "/training", label: "Training", icon: Dumbbell },
   { to: "/expenses", label: "Expenses", icon: Wallet },
@@ -291,7 +294,7 @@ export function Layout() {
         <aside
           ref={asideRef}
           className={cn(
-            "pane relative flex shrink-0 flex-col overflow-hidden p-2",
+            "app-sidebar pane relative flex shrink-0 flex-col overflow-hidden p-2",
             "transition-[width] duration-[380ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
             compact ? "w-[60px]" : "w-[212px]",
           )}
@@ -339,6 +342,8 @@ export function Layout() {
         <TrayEvents />
         {/* Spotify, read once for the whole app; also keeps the listening history. */}
         <NowPlayingService />
+        {/* The Focus timer, kept running on every page and in the tray. */}
+        <FocusService />
         <Toaster />
         {SHOW_TIME_DEBUG_PANEL && <TimeOfDayDebugPanel />}
         {/* relative: keeps absolutely positioned content (screen-reader tables) inside this scroll area instead of stretching the whole window */}
@@ -349,6 +354,7 @@ export function Layout() {
           bar; it fades in with the first few pixels of scroll, so a page at rest is perfectly sharp.
         */}
         <main
+          id="app-main"
           className="relative -mt-10 -mb-3 min-w-0 flex-1 overflow-y-auto"
           onScroll={(event) => {
             // A variable, not opacity on the veil: opacity on a parent would stop its layers' blur working.

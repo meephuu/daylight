@@ -660,6 +660,85 @@
 }
 
 /*
+ * Focus mode (components/focus/FocusMode.tsx): each digit of the clock that changes rolls down into
+ * place out of a slight blur, and a soft glow of the hour's light breathes behind the ring while it runs.
+ */
+@keyframes digit-in {
+  from {
+    opacity: 0;
+    translate: 0 -0.22em;
+    filter: blur(6px);
+  }
+}
+.digit-in {
+  display: inline-block;
+  animation: digit-in 420ms var(--ease-out) backwards;
+}
+@keyframes focus-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    scale: 0.94;
+  }
+  50% {
+    opacity: 0.7;
+    scale: 1.04;
+  }
+}
+.focus-breathe {
+  animation: focus-breathe 7s ease-in-out infinite;
+}
+[data-motion="reduce"] .digit-in {
+  animation: none;
+}
+
+/*
+ * The Focus page's blocks leave as focus mode opens: they fade, sink a little and shrink one after
+ * another (order in --i), then are gone (hidden, out of the tab order). They come back the same way when
+ * it closes. The panes themselves move ([data-away] is on each .pane, and on each child of the header),
+ * never a wrapper around them: a see-through wrapper switches off the glass's blur until it is opaque
+ * again, which shows as a jolt at the end. Only opacity and transforms (no filter), so it stays on the
+ * compositor. The timer pane ("fade") only fades, so the ring's way back into it lands true.
+ */
+.focus-page :is([data-away], header > *) {
+  transition:
+    opacity 380ms var(--ease-out),
+    translate 560ms var(--ease-out),
+    scale 560ms var(--ease-out),
+    visibility 0s;
+  transition-delay: calc(var(--i, 0) * 45ms);
+}
+.focus-away :is([data-away], header > *) {
+  opacity: 0;
+  translate: 0 22px;
+  scale: 0.96;
+  visibility: hidden;
+  pointer-events: none;
+  transition-delay: calc(var(--i, 0) * 45ms), calc(var(--i, 0) * 45ms), calc(var(--i, 0) * 45ms), calc(560ms + var(--i, 0) * 45ms);
+}
+.focus-away [data-away="fade"] {
+  translate: none;
+  scale: none;
+}
+[data-motion="reduce"] .focus-page :is([data-away], header > *) {
+  transition: opacity 160ms ease-out, visibility 0s;
+}
+[data-motion="reduce"] .focus-away :is([data-away], header > *) {
+  translate: none;
+  scale: none;
+  transition: opacity 160ms ease-out, visibility 0s linear 160ms;
+}
+
+/* While focus mode darkens the window, the sidebar stays above it, sharp and usable. */
+[data-focus-mode="on"] .app-sidebar {
+  z-index: 39;
+}
+[data-motion="reduce"] .focus-breathe {
+  animation: none;
+  opacity: 0.45;
+}
+
+/*
  * Reduced motion: nothing moves or blurs. Arrivals become a short fade, so a state change is still
  * visible; the stars and the sky's own transitions stop. Keyed to <html data-motion="reduce">, which
  * lib/motion.ts sets from Settings > Animations (following Windows by default).

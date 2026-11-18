@@ -4,8 +4,10 @@ import { Layout } from "@/components/Layout";
 import { queryClient } from "@/lib/queryClient";
 import CalendarPage from "@/pages/Calendar";
 import ExpensesPage from "@/pages/Expenses";
+import FocusPage from "@/pages/Focus";
 import HabitsPage from "@/pages/Habits";
 import HomePage from "@/pages/Home";
+import MiniTimer from "@/pages/MiniTimer";
 import MusicPage from "@/pages/Music";
 import NotesPage from "@/pages/Notes";
 import ReviewPage from "@/pages/Review";
@@ -18,10 +20,13 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          {/* The mini timer window: no shell, just the timer. */}
+          <Route path="mini" element={<MiniTimer />} />
           <Route element={<Layout />}>
             <Route index element={<HomePage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="calendar" element={<CalendarPage />} />
+            <Route path="focus" element={<FocusPage />} />
             <Route path="habits" element={<HabitsPage />} />
             <Route path="training" element={<TrainingPage />} />
             <Route path="notes" element={<NotesPage />} />

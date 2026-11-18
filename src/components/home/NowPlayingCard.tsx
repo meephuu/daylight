@@ -1,19 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Music2, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { Music2, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { formatTrackTime, useCoverColor, useNowPlaying } from "@/lib/nowPlaying";
 import { cn } from "@/lib/utils";
-
-/** "just now", "12 min ago", "3 h ago", "2 days ago". */
-function ago(at: number): string {
-  const minutes = Math.round((Date.now() - at) / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.round(hours / 24);
-  return `${days} ${days === 1 ? "day" : "days"} ago`;
-}
 
 /** Three small bars that dance while music plays; still (and shorter) when it does not. */
 function Equalizer({ playing }: { playing: boolean }) {
@@ -75,14 +64,9 @@ export function NowPlayingCard() {
           {shown ? status : "Music"}
           {live && <Equalizer playing={track.playing} />}
         </h2>
-        {/* Opens the Music page (the turntable, the library and the listening stats). */}
-        <Link
-          to="/music"
-          title="Open the Music page"
-          className="-mr-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          {!live && last ? ago(last.seenAt) : "Spotify"}
-          <ArrowUpRight className="size-3.5" aria-hidden="true" />
+        {/* Opens the Music page (the turntable, the library and the listening stats); the same quiet link as every Home card's. */}
+        <Link to="/music" className="text-xs font-medium text-muted-foreground hover:text-foreground">
+          Music
         </Link>
       </div>
 

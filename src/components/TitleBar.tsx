@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Copy, Maximize2, Minimize2, Minus, Square, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Copy, Maximize2, Minimize2, Minus, Square, Timer, X } from "lucide-react";
+import { useNow } from "@/components/focus/FocusStage";
 import { useAmbientMinutes } from "@/lib/ambient";
+import { formatClock, isUnderway, PHASE_LABELS, remainingAt, useFocusTimer } from "@/lib/focus";
 import { skyReadout } from "@/lib/sky";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +23,35 @@ function appWindow() {
 }
 
 /**
+ * While a Focus run is under way the middle of the title bar is its timer ("Focus · 18:42", or the task),
+ * so it can be seen from any page; clicking it opens the Focus page.
+ */
+function FocusReadout() {
+  const navigate = useNavigate();
+  const timer = useFocusTimer();
+  const running = timer.status === "running";
+  const now = useNow(running);
+  const left = remainingAt(timer, now);
+  const label = timer.task && timer.phase === "focus" ? timer.task.title : PHASE_LABELS[timer.phase];
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("/focus")}
+      title="Open Focus"
+      className="flex max-w-[360px] min-w-0 items-center gap-2 rounded-full px-3 py-1 text-xs text-foreground/80 outline-none transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      <Timer className={cn("size-3.5 shrink-0 text-sky-accent", !running && "opacity-60")} aria-hidden="true" />
+      <span className="min-w-0 truncate">{label}</span>
+      <span aria-hidden="true">·</span>
+      <span className={cn("shrink-0 font-semibold tabular-nums", !running && "text-foreground/55")}>
+        {formatClock(left)}
+        {timer.status === "paused" && " paused"}
+      </span>
+    </button>
+  );
+}
+
+/**
  * The window's own title bar, drawn by the app so it sits on the sky with everything else (the native
  * one is switched off in tauri.conf.json). Dragging it moves the window, double-clicking it maximises.
  * The middle carries the live sky readout. The close button hides the window to the tray.
@@ -32,6 +64,7 @@ export function TitleBar({ section }: TitleBarProps) {
   const [maximized, setMaximized] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const minutes = useAmbientMinutes();
+  const focusUnderway = useFocusTimer(isUnderway);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -103,12 +136,16 @@ export function TitleBar({ section }: TitleBarProps) {
         </span>
       </div>
 
-      <div {...drag} className="flex items-center gap-2 text-xs text-foreground/75">
-        <span {...drag} aria-hidden="true" className="size-2 rounded-full bg-sky-accent shadow-[0_0_10px_1px_var(--sky-accent)]" />
-        <span {...drag} className="tabular-nums" aria-live="off">
-          {skyReadout(minutes)}
-        </span>
-      </div>
+      {focusUnderway ? (
+        <FocusReadout />
+      ) : (
+        <div {...drag} className="flex items-center gap-2 text-xs text-foreground/75">
+          <span {...drag} aria-hidden="true" className="size-2 rounded-full bg-sky-accent shadow-[0_0_10px_1px_var(--sky-accent)]" />
+          <span {...drag} className="tabular-nums" aria-live="off">
+            {skyReadout(minutes)}
+          </span>
+        </div>
+      )}
 
       <div className="flex h-full justify-end">
         <button

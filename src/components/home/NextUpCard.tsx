@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Moon } from "lucide-react";
+import { Moon } from "lucide-react";
 import { useDayEntries, useNowMinutes } from "@/hooks/useDay";
 import { timeToMinutes } from "@/lib/calendarItems";
 import { formatDueDateTime, todayString } from "@/lib/dates";
@@ -100,12 +100,9 @@ export function NextUpCard({ nextDeadline }: NextUpCardProps) {
             "Nothing after that"
           )}
         </span>
-        <Link
-          to="/calendar"
-          className="inline-flex shrink-0 items-center gap-1 font-medium text-foreground/85 underline-offset-4 hover:text-foreground hover:underline"
-        >
+        {/* The same quiet link as every Home card's. */}
+        <Link to="/calendar" className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground">
           Calendar
-          <ArrowRight className="size-3.5" />
         </Link>
       </div>
     </section>

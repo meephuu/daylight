@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { format, isSameDay, isToday as isTodayDate } from "date-fns";
-import { Bell } from "lucide-react";
+import { Bell, Timer } from "lucide-react";
+import { useFocusSessionsOn } from "@/hooks/useFocus";
+import { useProjects } from "@/hooks/useProjects";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNowMinutes } from "@/hooks/useDay";
 import { useSetOccurrenceState } from "@/hooks/useCalendarItems";
@@ -17,6 +19,14 @@ import { cn } from "@/lib/utils";
 const HOUR_PX = 56;
 /** Room above the first hour line, so its label (centred on the line) is never cut off. */
 const PAD_TOP = 12;
+/** The focus sessions' column at the right of the hours. */
+const FOCUS_COL_PX = 128;
+
+/** "2026-11-18 14:05:00" -> minutes since midnight. */
+function minutesOfDateTime(dateTime: string): number {
+  return Number(dateTime.slice(11, 13)) * 60 + Number(dateTime.slice(14, 16));
+}
+
 /** The hour labels' column. */
 const GUTTER_PX = 60;
 /** A lane is at most this wide, so a block reads as an entry, not a banner. */
@@ -83,11 +93,19 @@ export function DayView({ day, entriesByDate, onPickDay, onAdd, onEdit }: DayVie
   const done = entries.filter((entry) => checkable(entry) && entry.done).length;
   const planned = plannedMinutes(entries);
 
+  // Focus sessions (Focus page) get their own narrow column at the right; the hours stretch to fit them.
+  const { data: focusSessions = [] } = useFocusSessionsOn(date);
+  const startHour = Math.min(timeline.startHour, ...focusSessions.map((session) => Math.floor(minutesOfDateTime(session.startedAt) / 60)));
+  const endHour = Math.max(timeline.endHour, ...focusSessions.map((session) => Math.ceil(minutesOfDateTime(session.endedAt) / 60)));
+  const focusColumn = focusSessions.length > 0 ? FOCUS_COL_PX : 0;
+  const { data: projects = [] } = useProjects();
+  const projectColors = useMemo(() => new Map(projects.map((project) => [project.id, project.color])), [projects]);
+
   const hours: number[] = [];
-  for (let hour = timeline.startHour; hour <= timeline.endHour; hour += 1) hours.push(hour);
-  const top = (minutes: number) => PAD_TOP + ((minutes - timeline.startHour * 60) / 60) * HOUR_PX;
-  const gridHeight = (timeline.endHour - timeline.startHour) * HOUR_PX;
-  const showNow = isToday && now >= timeline.startHour * 60 && now <= timeline.endHour * 60;
+  for (let hour = startHour; hour <= endHour; hour += 1) hours.push(hour);
+  const top = (minutes: number) => PAD_TOP + ((minutes - startHour * 60) / 60) * HOUR_PX;
+  const gridHeight = (endHour - startHour) * HOUR_PX;
+  const showNow = isToday && now >= startHour * 60 && now <= endHour * 60;
   const laneWidth = `min(calc((100% - ${GUTTER_PX}px) / ${timeline.lanes}), ${MAX_LANE_PX}px)`;
 
   return (
@@ -137,7 +155,7 @@ export function DayView({ day, entriesByDate, onPickDay, onAdd, onEdit }: DayVie
                   <span className="h-px flex-1 bg-foreground/[0.09]" />
                 </div>
                 {/* A fainter half-hour line, so times between the hours can be read off the grid. */}
-                {hour < timeline.endHour && (
+                {hour < endHour && (
                   <span
                     className="absolute right-0 h-px border-t border-dashed border-foreground/[0.06]"
                     style={{ top: HOUR_PX / 2, left: GUTTER_PX - 4 }}
@@ -146,7 +164,38 @@ export function DayView({ day, entriesByDate, onPickDay, onAdd, onEdit }: DayVie
               </div>
             ))}
 
-            <div className="absolute top-0 bottom-0" style={{ left: GUTTER_PX, right: 0 }}>
+            {focusColumn > 0 && (
+              <div className="absolute top-0 bottom-0 right-0" style={{ width: focusColumn - 6 }} aria-label="Focus sessions">
+                {focusSessions.map((session) => {
+                  const start = minutesOfDateTime(session.startedAt);
+                  const end = Math.max(start + 1, minutesOfDateTime(session.endedAt));
+                  const height = Math.max(20, ((end - start) / 60) * HOUR_PX - 3);
+                  const color = (session.projectId !== null ? projectColors.get(session.projectId) : undefined) ?? "var(--series-1)";
+                  const label = `Focus · ${session.taskTitle ?? "no task"} · ${session.startedAt.slice(11, 16)}–${session.endedAt.slice(11, 16)}${session.completed ? "" : " · stopped early"}`;
+                  return (
+                    <span
+                      key={session.id}
+                      onClick={(event) => event.stopPropagation()}
+                      title={label}
+                      aria-label={label}
+                      role="img"
+                      className="glass-well absolute right-0 left-0 flex cursor-default items-start gap-1.5 overflow-hidden rounded-[10px] px-2 py-1 text-[11px] leading-tight shadow-[inset_0_0_0_1px_var(--glass-rim)]"
+                      style={{
+                        top: top(start) + 1.5,
+                        height,
+                        // Stopped early: a dashed edge, not just a lighter colour.
+                        ...(session.completed ? {} : { outline: `1.5px dashed color-mix(in srgb, ${color} 70%, transparent)`, outlineOffset: -1.5 }),
+                      }}
+                    >
+                      <Timer className="mt-px size-3 shrink-0" style={{ color }} aria-hidden="true" />
+                      <span className="min-w-0 truncate font-medium">{height >= 34 ? (session.taskTitle ?? "Focus") : "Focus"}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="absolute top-0 bottom-0" style={{ left: GUTTER_PX, right: focusColumn }}>
               {timeline.blocks.map((block) => {
                 const { entry } = block;
                 const range = formatTimeRange(entry.startTime, entry.endTime);

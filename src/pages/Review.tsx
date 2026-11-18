@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { addWeeks, format, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { FocusPanel } from "@/components/review/FocusPanel";
 import { HabitHeatmap } from "@/components/review/HabitHeatmap";
 import { MoneyPanel } from "@/components/review/MoneyPanel";
 import { ReviewHero } from "@/components/review/ReviewHero";
@@ -106,6 +107,7 @@ export default function ReviewPage() {
       />
 
       <TasksPanel report={report} today={today} projectsById={projectsById} />
+      <FocusPanel range={range} previous={previousWeekRange(range)} projectsById={projectsById} />
       <HabitHeatmap report={report} today={today} logsByHabit={logsByHabit} />
       <MoneyPanel report={report} previous={previous} today={today} pending={pending} hasBudget={settings.budgetSatang !== null} />
     </div>

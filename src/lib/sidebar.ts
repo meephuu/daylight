@@ -56,11 +56,16 @@ export const useSidebar = create<SidebarState>((set) => ({
   setDragging: (dragging) => set({ dragging }),
 }));
 
-/** Sorts items by a saved order of paths; anything not in it follows, in its original order. */
+/** Sorts items by a saved order of paths; anything not in it slots in after its default neighbour. */
 export function applyOrder<T extends { to: string }>(items: T[], order: string[]): T[] {
-  const rank = (item: T) => {
-    const index = order.indexOf(item.to);
-    return index === -1 ? order.length + items.indexOf(item) : index;
-  };
-  return [...items].sort((a, b) => rank(a) - rank(b));
+  const byPath = new Map(items.map((item) => [item.to, item]));
+  const result = order.flatMap((path) => byPath.get(path) ?? []);
+  // A page the saved order does not know yet (added in a later version) goes right after the page it
+  // follows by default, not to the bottom (e.g. Focus after Notes).
+  items.forEach((item, index) => {
+    if (result.includes(item)) return;
+    const before = items.slice(0, index).reverse().find((other) => result.includes(other));
+    result.splice(before ? result.indexOf(before) + 1 : 0, 0, item);
+  });
+  return result;
 }

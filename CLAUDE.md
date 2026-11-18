@@ -41,7 +41,7 @@ src/components/ambient/  SkyBackground, StarField, SkyOrb, debug panel
 src/hooks/        TanStack Query hooks, one per domain (useTasks, useExpenses, ...)
 src/lib/db/       SQL access per table (getDb() in client.ts), zod schemas and types
 src/lib/          pure logic and helpers (sky.ts, bangkok.ts, review.ts, recurring.ts, ...)
-src-tauri/        Rust shell: tray, single instance, autostart, migrations registry; src/media.rs reads and controls Spotify via Windows media controls and its mixer volume (commands now_playing, media_control, spotify_volume, set_spotify_volume, spotify_auth_wait)
+src-tauri/        Rust shell: tray (incl. Focus start/pause/skip), single instance, autostart, migrations registry, the Focus timer's alarm + notification (focus_schedule), tray tooltip (focus_tray) and the always-on-top mini timer window (focus_mini, label "mini", route /mini); src/media.rs reads and controls Spotify via Windows media controls and its mixer volume (commands now_playing, media_control, spotify_volume, set_spotify_volume, spotify_auth_wait)
 src-tauri/migrations/  numbered SQLite migrations
 ```
 

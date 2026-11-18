@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, WindowEvent,
 };
@@ -101,6 +101,18 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/013_music_history.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 14,
+            description: "focus sessions",
+            sql: include_str!("../migrations/014_focus_sessions.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 15,
+            description: "focus session notes",
+            sql: include_str!("../migrations/015_focus_session_notes.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -169,8 +181,17 @@ fn show_main_window(app: &AppHandle) {
 fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let quick_add = MenuItem::with_id(app, "quick-add", "Quick add task", true, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", "Open dashboard", true, None::<&str>)?;
+    let focus_toggle = MenuItem::with_id(app, "focus-toggle", "Start focus", true, None::<&str>)?;
+    let focus_skip = MenuItem::with_id(app, "focus-skip", "Skip to next", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&quick_add, &open, &quit])?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let separator2 = PredefinedMenuItem::separator(app)?;
+    let menu = Menu::with_items(
+        app,
+        &[&quick_add, &open, &separator, &focus_toggle, &focus_skip, &separator2, &quit],
+    )?;
+    // Kept so the Focus page can relabel it ("Pause focus" while the timer runs).
+    app.manage(FocusTrayItem(focus_toggle.clone()));
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("Daylight")
@@ -183,6 +204,13 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                 let _ = app.emit("quick-add-task", ());
             }
             "open" => show_main_window(app),
+            // The Focus timer lives in the window (FocusService); these just pass the press on.
+            "focus-toggle" => {
+                let _ = app.emit("focus-toggle", ());
+            }
+            "focus-skip" => {
+                let _ = app.emit("focus-skip", ());
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -202,6 +230,110 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     }
     tray.build(app)?;
     Ok(())
+}
+
+/// The tray menu's "Start focus" / "Pause focus" item.
+struct FocusTrayItem(MenuItem<tauri::Wry>);
+
+/// Bumped by every focus_schedule call, so only the latest scheduled alarm fires.
+static FOCUS_ALARM: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Updates the tray for the Focus timer: the icon's tooltip (e.g. "Focus · 18 min left") and the
+/// start/pause item's label.
+#[tauri::command]
+fn focus_tray(app: AppHandle, tooltip: String, running: bool) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(tooltip));
+    }
+    if let Some(item) = app.try_state::<FocusTrayItem>() {
+        let _ = item.0.set_text(if running { "Pause focus" } else { "Start focus" });
+    }
+}
+
+/// Sets the Focus timer's alarm: at `at_ms` (Unix time, ms) a Windows notification shows and the window
+/// gets a "focus-ended" event. The window's own timers slow down while it is hidden in the tray, so the
+/// alarm is kept here. Any later call (with at_ms = 0 to only cancel) replaces it.
+#[tauri::command]
+fn focus_schedule(app: AppHandle, at_ms: u64, title: String, body: String) {
+    use std::sync::atomic::Ordering;
+    let generation = FOCUS_ALARM.fetch_add(1, Ordering::SeqCst) + 1;
+    if at_ms == 0 {
+        return;
+    }
+    std::thread::spawn(move || {
+        loop {
+            if FOCUS_ALARM.load(Ordering::SeqCst) != generation {
+                return;
+            }
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            if now >= at_ms {
+                break;
+            }
+            // Short sleeps, so a cancelled alarm's thread ends soon.
+            std::thread::sleep(std::time::Duration::from_millis((at_ms - now).min(500)));
+        }
+        use tauri_plugin_notification::NotificationExt;
+        let _ = app.notification().builder().title(title).body(body).show();
+        let _ = app.emit("focus-ended", ());
+    });
+}
+
+const MINI_LABEL: &str = "mini";
+const MINI_WIDTH: f64 = 264.0;
+const MINI_HEIGHT: f64 = 92.0;
+
+/// Opens (or closes) the mini timer: a small frameless window that stays on top of other apps, in the
+/// top-right corner of the screen, showing the Focus timer (the /mini route).
+/// Must be async: building a window from a synchronous command deadlocks the app on Windows (the
+/// command would hold the main thread that the new window needs).
+#[tauri::command]
+async fn focus_mini(app: AppHandle, open: bool) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(MINI_LABEL) {
+        if open {
+            let _ = window.show();
+            let _ = window.set_focus();
+        } else {
+            let _ = window.close();
+        }
+        return Ok(());
+    }
+    if !open {
+        return Ok(());
+    }
+    let mut builder = tauri::WebviewWindowBuilder::new(&app, MINI_LABEL, tauri::WebviewUrl::App("mini".into()))
+        .title("Daylight focus")
+        .inner_size(MINI_WIDTH, MINI_HEIGHT)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false);
+    // Top-right of the screen the main window is on, clear of the edge.
+    let monitor = app
+        .get_webview_window("main")
+        .and_then(|main| main.current_monitor().ok().flatten())
+        .or_else(|| app.primary_monitor().ok().flatten());
+    if let Some(monitor) = monitor {
+        let scale = monitor.scale_factor();
+        let origin = monitor.position().to_logical::<f64>(scale);
+        let size = monitor.size().to_logical::<f64>(scale);
+        builder = builder.position(origin.x + size.width - MINI_WIDTH - 24.0, origin.y + 24.0);
+    }
+    builder.build().map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// Brings the main window up (from the mini timer).
+#[tauri::command]
+fn show_main(app: AppHandle) {
+    show_main_window(&app);
 }
 
 /// What Spotify is playing on this PC (None when it is closed or idle). Runs off the main thread:
@@ -303,6 +435,8 @@ pub fn run() {
     backup_database_once(&context.config().identifier, "before-note-images");
     backup_database_once(&context.config().identifier, "before-workout-history");
     backup_database_once(&context.config().identifier, "before-music-history");
+    backup_database_once(&context.config().identifier, "before-focus-sessions");
+    backup_database_once(&context.config().identifier, "before-focus-notes");
 
     tauri::Builder::default()
         // Must be registered first. A second launch just surfaces the running window instead of
@@ -311,6 +445,7 @@ pub fn run() {
             show_main_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec![MINIMIZED_ARG]),
@@ -338,9 +473,17 @@ pub fn run() {
             spotify_auth_wait,
             computer_name,
             open_spotify,
-            audio_pulse
+            audio_pulse,
+            focus_tray,
+            focus_schedule,
+            focus_mini,
+            show_main
         ])
         .on_window_event(|window, event| {
+            // Only the main window hides to the tray; the mini timer really closes.
+            if window.label() != "main" {
+                return;
+            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
