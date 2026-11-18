@@ -21,7 +21,7 @@ Since 2026-11-12 this repo **is** the owner's installed Daylight: the release bu
 - `pnpm dev`: Vite only, port **1430** (strict). Tauri APIs (SQL, autostart, tray) don't work in a plain browser.
 - `pnpm tauri dev`: full desktop app (runs `pnpm dev` itself).
 - `pnpm build`: `tsc && vite build`. **Run this to type-check**; there are no tests or linter.
-- `pnpm release`: the real installer (`tauri build` + `tauri.release.conf.json`): Daylight, `com.phu.mydashboard`, `my-dashboard.exe`. Bump `version` in `tauri.conf.json` (and `Cargo.toml`/`package.json`) above the installed one before releasing. Output: `src-tauri/target/release/bundle/nsis/Daylight_<version>_x64-setup.exe`.
+- `pnpm release`: the real installer (`tauri build` + `tauri.release.conf.json`): Daylight, `com.phu.mydashboard`, `my-dashboard.exe`. Bump `version` in `tauri.conf.json` (and `Cargo.toml`/`package.json`) above the installed one before releasing (owner's rule: a minor change, fixes or small additions without much new feature, bumps only the last digit, e.g. 2.5.0 -> 2.5.1; the middle digit is for releases with real new features). Output: `src-tauri/target/release/bundle/nsis/Daylight_<version>_x64-setup.exe`.
 - `pnpm tauri build`: a separate test install (`com.phu.daylight2`), not the real app.
 - Demo build for screenshots: uses `src-tauri/tauri.demo.conf.json` (identifier `com.phu.daylight2.demo`); fill it with `python demo/seed_demo.py` (close the demo app first, run it once so migrations exist).
 

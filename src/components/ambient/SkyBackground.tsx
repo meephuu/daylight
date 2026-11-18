@@ -66,7 +66,8 @@ export function SkyBackground() {
   // Music page option: while a song plays, its cover's colour becomes the sky's accent and sun.
   const cover = useNowPlayingStore((state) => (state.skyTint && state.track?.playing ? state.coverColor : null));
   const accent = cover ? accentFromCover(cover, dark) : sky.accent;
-  const glow = cover ? accentFromCover(cover, dark) : sky.glow;
+  // The light theme keeps the hour's own sun / moon glow: the cover's colour there did not look good.
+  const glow = cover && dark ? accentFromCover(cover, dark) : sky.glow;
   // On the Music page the colour is poured strongly over the left half of the window, behind the
   // turntable, and dissolves into the hour's sky (see .album-wash).
   const onMusic = useLocation().pathname.startsWith("/music");
@@ -92,6 +93,7 @@ export function SkyBackground() {
     style.setProperty("--sky-glow", glow);
     style.setProperty("--sky-accent", accent);
   }, [sky.top, sky.mid, sky.bottom, glow, accent]);
+
 
   return (
     <div aria-hidden="true" className="sky pointer-events-none fixed inset-0 -z-10 overflow-hidden">

@@ -267,7 +267,7 @@ export function Layout() {
   )?.label;
 
   return (
-    <div className="flex h-screen flex-col text-foreground">
+    <div className="sky-ink flex h-screen flex-col text-foreground">
       <SkyBackground />
       {/*
         The frosted top edge of the scroll area (see .scroll-veil). It lives outside the scroll area so it can

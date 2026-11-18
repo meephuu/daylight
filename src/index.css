@@ -308,6 +308,21 @@
 
 /* ------------------------------------------------------------------ the sky */
 
+/*
+ * Ink on the sky (owner's request): in the light theme, text set straight on the sky (outside the
+ * glass) is white at every hour. Glass keeps the theme's own ink.
+ */
+:root:not(.dark) .sky-ink {
+  --foreground: #ffffff;
+  --muted-foreground: rgb(255 255 255 / 0.86);
+}
+:root:not(.dark) .sky-ink :is(.pane, .glass, .glass-strong, .sky-tint, [data-glass]) {
+  --foreground: #0d1430;
+  --muted-foreground: #475073;
+  /* The colour itself is inherited as already computed (white), so it is set again here too. */
+  color: var(--foreground);
+}
+
 .sky {
   background:
     linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 58%, var(--sky-bottom) 100%);
