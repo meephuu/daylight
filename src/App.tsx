@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { queryClient } from "@/lib/queryClient";
+import AppsPage from "@/pages/Apps";
 import CalendarPage from "@/pages/Calendar";
 import ExpensesPage from "@/pages/Expenses";
 import FocusPage from "@/pages/Focus";
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="notes" element={<NotesPage />} />
             <Route path="expenses" element={<ExpensesPage />} />
             <Route path="music" element={<MusicPage />} />
+            <Route path="apps" element={<AppsPage />} />
             <Route path="review" element={<ReviewPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

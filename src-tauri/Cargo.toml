@@ -1,6 +1,6 @@
 [package]
 name = "daylight-2"
-version = "2.5.1"
+version = "2.6.0"
 description = "Daylight 2.0 - a personal dashboard for tasks, habits, notes and expenses"
 authors = ["you"]
 edition = "2024"
@@ -26,11 +26,14 @@ tauri-plugin-sql = { version = "2.6.0", features = ["sqlite"] }
 tauri-plugin-autostart = "2.7.0"
 tauri-plugin-single-instance = "2.5.4"
 tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
 
 # Now playing (Spotify) through Windows' media controls; see src/media.rs. Same windows crate as Tauri uses.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Media", "Media_Control", "Storage_Streams", "Win32_Foundation", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Threading", "Win32_System_Variant", "Win32_System_WinRT"] }
+windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Media", "Media_Control", "Storage_Streams", "Web", "Web_Http", "Web_Http_Headers", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Registry", "Win32_System_Threading", "Win32_System_Variant", "Win32_System_WinRT", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_UI_WindowsAndMessaging"] }
 base64 = "0.22"
+# App page (src/launcher.rs): app icons are encoded as PNG. Same version Tauri already uses.
+png = "0.18"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

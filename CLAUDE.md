@@ -27,21 +27,21 @@ Since 2026-11-12 this repo **is** the owner's installed Daylight: the release bu
 
 ## Stack
 
-React 18, TypeScript 6, Vite 8, Tailwind 4 (`@tailwindcss/vite`), shadcn + Base UI primitives (`src/components/ui`), lucide-react, Recharts, dnd-kit, react-hook-form + zod, TanStack Query, Zustand, react-router-dom 7, date-fns. Tauri plugins: sql (SQLite), autostart, opener, single-instance. Fonts bundled offline: Sora (display, default) or Instrument Serif (Settings), Onest (body), Anuphan (Thai).
+React 18, TypeScript 6, Vite 8, Tailwind 4 (`@tailwindcss/vite`), shadcn + Base UI primitives (`src/components/ui`), lucide-react, Recharts, dnd-kit, react-hook-form + zod, TanStack Query, Zustand, react-router-dom 7, date-fns. Tauri plugins: sql (SQLite), autostart, opener, single-instance, notification, dialog (file pickers on the App page). Fonts bundled offline: Sora (display, default) or Instrument Serif (Settings), Onest (body), Anuphan (Thai).
 
 Import alias: `@/` -> `src/`.
 
 ## Architecture
 
 ```
-src/pages/        one file per route (Home, Tasks, Calendar, Habits, Training, Notes, Expenses, Music, Review, Settings)
+src/pages/        one file per route (Home, Tasks, Calendar, Habits, Training, Notes, Expenses, Music, Apps, Review, Settings)
 src/components/   shared pieces at top level; feature folders (home/, expenses/, training/, ...)
 src/components/ui shadcn primitives
 src/components/ambient/  SkyBackground, StarField, SkyOrb, debug panel
 src/hooks/        TanStack Query hooks, one per domain (useTasks, useExpenses, ...)
 src/lib/db/       SQL access per table (getDb() in client.ts), zod schemas and types
 src/lib/          pure logic and helpers (sky.ts, bangkok.ts, review.ts, recurring.ts, ...)
-src-tauri/        Rust shell: tray (incl. Focus start/pause/skip), single instance, autostart, migrations registry, the Focus timer's alarm + notification (focus_schedule), tray tooltip (focus_tray) and the always-on-top mini timer window (focus_mini, label "mini", route /mini); src/media.rs reads and controls Spotify via Windows media controls and its mixer volume (commands now_playing, media_control, spotify_volume, set_spotify_volume, spotify_auth_wait)
+src-tauri/        Rust shell: tray (incl. Focus start/pause/skip), single instance, autostart, migrations registry, the Focus timer's alarm + notification (focus_schedule), tray tooltip (focus_tray) and the always-on-top mini timer window (focus_mini, label "mini", route /mini); src/media.rs reads and controls Spotify via Windows media controls and its mixer volume (commands now_playing, media_control, spotify_volume, set_spotify_volume, spotify_auth_wait); src/launcher.rs serves the App page's Quick Access: the installed apps from the shell's AppsFolder, their icons as PNG data URLs, website icons fetched from the site itself (WinRT HttpClient), installed browsers (App Paths) and opening shortcuts (commands launcher_apps, launcher_app_icon, launcher_site_icon, launcher_browsers, launcher_open, launcher_read_image)
 src-tauri/migrations/  numbered SQLite migrations
 ```
 

@@ -14,6 +14,7 @@
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
     "opener:default",
+    "dialog:allow-open",
     "sql:default",
     "sql:allow-load",
     "sql:allow-execute",

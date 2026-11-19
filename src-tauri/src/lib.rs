@@ -11,6 +11,7 @@ use tauri::{
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod launcher;
 mod media;
 
 // Database file name, stored in the app's config directory (see Settings page later).
@@ -117,6 +118,12 @@ fn migrations() -> Vec<Migration> {
             version: 16,
             description: "focus sessions rebuild",
             sql: include_str!("../migrations/016_focus_sessions_rebuild.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 17,
+            description: "app shortcuts",
+            sql: include_str!("../migrations/017_app_shortcuts.sql"),
             kind: MigrationKind::Up,
         },
     ]
@@ -447,6 +454,54 @@ fn open_spotify() -> Result<(), String> {
     Ok(())
 }
 
+/// The apps on this PC, as Start's "All apps" lists them (for the App page's shortcut picker).
+#[tauri::command]
+async fn launcher_apps() -> Result<Vec<launcher::InstalledApp>, String> {
+    tauri::async_runtime::spawn_blocking(launcher::installed_apps)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// An app's icon (AppsFolder entry, .exe or .lnk) as a PNG data: URL, `size` pixels square.
+#[tauri::command]
+async fn launcher_app_icon(target: String, size: Option<i32>) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || launcher::app_icon(target, size.unwrap_or(128)))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// A website's own icon as a data: URL, fetched from the site.
+#[tauri::command]
+async fn launcher_site_icon(url: String) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || launcher::site_icon(url))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Which of the browsers a website shortcut can name are installed ("chrome", "edge", ...).
+#[tauri::command]
+async fn launcher_browsers() -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(launcher::installed_browsers)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Opens a shortcut: kind "app" (target) or "website" (target URL in `browser`).
+#[tauri::command]
+async fn launcher_open(kind: String, target: String, browser: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || launcher::open(kind, target, browser))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// A chosen image file (or a chosen program's icon) as a data: URL, for a shortcut's icon.
+#[tauri::command]
+async fn launcher_read_image(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || launcher::read_image(path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let context = tauri::generate_context!();
@@ -461,6 +516,7 @@ pub fn run() {
     backup_database_once(&context.config().identifier, "before-focus-sessions");
     backup_database_once(&context.config().identifier, "before-focus-notes");
     backup_database_once(&context.config().identifier, "before-focus-rebuild");
+    backup_database_once(&context.config().identifier, "before-app-shortcuts");
 
     tauri::Builder::default()
         // Must be registered first. A second launch just surfaces the running window instead of
@@ -469,6 +525,7 @@ pub fn run() {
             show_main_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
@@ -502,7 +559,13 @@ pub fn run() {
             focus_schedule,
             focus_mini,
             music_mini,
-            show_main
+            show_main,
+            launcher_apps,
+            launcher_app_icon,
+            launcher_site_icon,
+            launcher_browsers,
+            launcher_open,
+            launcher_read_image
         ])
         .on_window_event(|window, event| {
             // Only the main window hides to the tray; the floating windows really close.

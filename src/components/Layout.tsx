@@ -9,6 +9,7 @@ import {
   Dumbbell,
   Disc3,
   Home,
+  LayoutGrid,
   PanelLeftClose,
   PanelLeftOpen,
   Repeat,
@@ -42,6 +43,7 @@ const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/training", label: "Training", icon: Dumbbell },
   { to: "/expenses", label: "Expenses", icon: Wallet },
   { to: "/music", label: "Music", icon: Disc3 },
+  { to: "/apps", label: "App", icon: LayoutGrid },
   { to: "/review", label: "Weekly review", icon: ClipboardCheck },
 ];
 

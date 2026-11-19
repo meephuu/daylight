@@ -29,7 +29,8 @@ A private, offline, single-user dashboard whose background follows the actual ti
 
 ## Capabilities and Constraints
 
-- Pages: Home, Tasks, Calendar, Notes, Habits, Training, Expenses, Music, Weekly review, Settings.
+- Pages: Home, Tasks, Calendar, Notes, Habits, Training, Expenses, Music, App, Weekly review, Settings.
+- App (added at the owner's request, 2026-11-19, migration 017): Quick Access, shortcuts to apps on this PC and to websites (opened in a chosen browser), A-Z; Screen Time is a placeholder for later, and ordering by use will come from it.
 - Music: Spotify on this PC through Windows media controls (no account), a local listening history (migration 013, added at the owner's request), and optionally the Spotify Web API (owner's own developer app, PKCE sign-in) for search, queue and playlists.
 - Since 2026-11-12 the redesign is the installed Daylight: release builds upgrade the original app in place (same identifier, same real data); dev builds use a separate identifier and a test copy of the data. The real data must never be lost: back it up before every install.
 - UI redesign only: database schema, queries, and features stay as they are.
