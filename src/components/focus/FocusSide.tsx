@@ -1,13 +1,17 @@
-import { forwardRef, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { forwardRef, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { Link } from "react-router-dom";
-import { ChevronDown, Search, Timer } from "lucide-react";
-import { useFocusDays } from "@/hooks/useFocus";
+import { Check, ChevronDown, Pencil, Search, Timer } from "lucide-react";
+import { PeriodStepper } from "@/components/PeriodStepper";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useFocusDays, useSetFocusSessionTask } from "@/hooks/useFocus";
 import { bangkokToday } from "@/lib/bangkok";
-import { formatDueDate, toDateString } from "@/lib/dates";
+import { dayTitle, formatDueDate, toDateString, weekTitle } from "@/lib/dates";
 import type { FocusSession } from "@/lib/db/focus";
 import type { Task } from "@/lib/db/tasks";
 import { formatFocused, useFocusTimer } from "@/lib/focus";
+import { showToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,9 +20,18 @@ import { cn } from "@/lib/utils";
  */
 const SidePane = forwardRef<
   HTMLElement,
-  { title: string; aside?: ReactNode; dim: boolean; children: ReactNode; id?: string; awayIndex?: number }
+  {
+    title: string;
+    aside?: ReactNode;
+    /** Buttons at the right of the title (e.g. back and forward through days). */
+    controls?: ReactNode;
+    dim: boolean;
+    children: ReactNode;
+    id?: string;
+    awayIndex?: number;
+  }
 >(
-  function SidePane({ title, aside, dim, children, id, awayIndex = 0 }, ref) {
+  function SidePane({ title, aside, controls, dim, children, id, awayIndex = 0 }, ref) {
     return (
       <section
         ref={ref}
@@ -36,9 +49,14 @@ const SidePane = forwardRef<
             dim && "opacity-45 group-hover/side:opacity-100 group-focus-within/side:opacity-100",
           )}
         >
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-[19px] leading-tight font-semibold tracking-[-0.02em]">{title}</h2>
-            {aside && <span className="text-xs text-muted-foreground tabular-nums">{aside}</span>}
+          <div className={cn("mb-3 flex justify-between gap-3", controls ? "-my-1 items-center" : "items-baseline")}>
+            <h2 className="min-w-0 truncate font-display text-[19px] leading-tight font-semibold tracking-[-0.02em]">{title}</h2>
+            {(aside || controls) && (
+              <div className="flex shrink-0 items-center gap-2">
+                {aside && <span className="text-xs text-muted-foreground tabular-nums">{aside}</span>}
+                {controls}
+              </div>
+            )}
           </div>
           {children}
         </div>
@@ -50,21 +68,30 @@ const SidePane = forwardRef<
 const minutesOf = (dateTime: string) => Number(dateTime.slice(11, 13)) * 60 + Number(dateTime.slice(14, 16));
 const timeOf = (dateTime: string) => dateTime.slice(11, 16);
 
-/* --- Today ------------------------------------------------------------------------------------------ */
+/* --- A day ----------------------------------------------------------------------------------------- */
 
 /**
- * Today's focus: the time against the daily goal, then the sessions along the day's hours, each in its
- * task's project colour (stopped early: hollow, dashed), and the latest few as a list.
+ * One day's focus (today unless you step back): the time against the daily goal, then the sessions along
+ * the day's hours, each in its task's project colour (stopped early: hollow, dashed), and every session
+ * as a list, newest first. A session's row changes the task it counts for.
  */
-export function TodayPane({
+export function DayPane({
+  day,
+  today,
+  onDayChange,
   sessions,
+  tasks,
   goalMin,
   projectColors,
   dim,
   awayIndex,
 }: {
+  day: string;
+  today: string;
+  onDayChange: (day: string) => void;
   awayIndex?: number;
   sessions: FocusSession[];
+  tasks: Task[];
   goalMin: number;
   projectColors: Map<number, string>;
   dim: boolean;
@@ -72,6 +99,7 @@ export function TodayPane({
   const [hover, setHover] = useState<number | null>(null);
   const focused = sessions.reduce((sum, session) => sum + session.focusedSeconds, 0);
   const goalShare = Math.min(1, focused / (goalMin * 60));
+  const isToday = day === today;
 
   // The strip spans 08:00 to midnight, widened to fit sessions outside those hours.
   const startHour = Math.min(8, ...sessions.map((session) => Math.floor(minutesOf(session.startedAt) / 60)));
@@ -84,7 +112,23 @@ export function TodayPane({
     (session.projectId !== null ? projectColors.get(session.projectId) : undefined) ?? "var(--series-1)";
 
   return (
-    <SidePane title="Today" aside={`goal ${formatFocused(goalMin * 60)}`} dim={dim} awayIndex={awayIndex}>
+    <SidePane
+      title={dayTitle(day, today)}
+      aside={`goal ${formatFocused(goalMin * 60)}`}
+      controls={
+        <PeriodStepper
+          unit="day"
+          canForward={!isToday}
+          onStep={(direction) => {
+            const next = toDateString(addDays(parseISO(day), direction));
+            onDayChange(next > today ? today : next);
+          }}
+          onCurrent={isToday ? undefined : () => onDayChange(today)}
+        />
+      }
+      dim={dim}
+      awayIndex={awayIndex}
+    >
       {/* The day's numbers as type, split by a hairline. */}
       <dl className="grid grid-cols-3 divide-x divide-foreground/10">
         <div className="pr-3">
@@ -115,7 +159,7 @@ export function TodayPane({
       </div>
 
       {/* The sessions along the day. */}
-      <figure className="relative mt-5" aria-label="Today's sessions by time">
+      <figure className="relative mt-5" aria-label={`${dayTitle(day, today)}'s sessions by time`}>
         <div className="relative h-7 rounded-[8px] bg-foreground/[0.05]" onMouseLeave={() => setHover(null)}>
           {ticks.slice(1, -1).map((hour) => (
             <span
@@ -178,34 +222,159 @@ export function TodayPane({
       </figure>
 
       {sessions.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">No focus yet today. Pick a task and press play.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          {isToday ? "No focus yet today. Pick a task and press play." : "Nothing focused this day."}
+        </p>
       ) : (
-        <ol className="mt-4 flex flex-col">
-          {sessions
-            .slice(-4)
-            .reverse()
-            .map((session) => (
-              <li key={session.id} className="flex min-h-8 items-center gap-2.5 text-sm">
-                <span className="w-11 shrink-0 text-xs text-muted-foreground tabular-nums">{timeOf(session.startedAt)}</span>
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={
-                    session.completed
-                      ? { backgroundColor: colorOf(session) }
-                      : { boxShadow: `inset 0 0 0 1.5px ${colorOf(session)}` }
-                  }
-                  aria-hidden="true"
-                />
-                <span className={cn("min-w-0 flex-1 truncate", !session.taskTitle && "text-muted-foreground")}>
-                  {session.taskTitle ?? "No task"}
-                </span>
-                {!session.completed && <span className="shrink-0 text-[11px] text-muted-foreground">stopped early</span>}
-                <span className="shrink-0 text-xs text-foreground/75 tabular-nums">{formatFocused(session.focusedSeconds)}</span>
-              </li>
-            ))}
+        // Every session, newest first; a long day scrolls inside the pane.
+        <ol className="-mx-2 mt-3 flex max-h-[min(264px,32vh)] flex-col overflow-y-auto px-0.5" aria-label="Sessions">
+          {[...sessions].reverse().map((session) => (
+            <li key={session.id}>
+              <SessionRow session={session} color={colorOf(session)} tasks={tasks} projectColors={projectColors} today={today} />
+            </li>
+          ))}
         </ol>
       )}
     </SidePane>
+  );
+}
+
+/** How many tasks the session picker lists before asking you to type. */
+const PICKER_LIMIT = 40;
+
+/**
+ * Tasks to point a finished session at, best guesses first: open ones in the order you would pick them
+ * (overdue, today, in progress, upcoming, no date), then done ones, most recently finished first.
+ */
+function pickerTasks(tasks: Task[], today: string, query: string): Task[] {
+  const open = groupTasks(tasks, today, query).flatMap((entry) => (entry.group === "Done today" ? [] : entry.tasks));
+  const needle = query.trim().toLowerCase();
+  const done = tasks
+    .filter((task) => task.status === "done" && (!needle || task.title.toLowerCase().includes(needle)))
+    .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
+  return [...open, ...done];
+}
+
+/** A finished session as a row: when, its task, how long. Clicking it picks a different task for it. */
+function SessionRow({
+  session,
+  color,
+  tasks,
+  projectColors,
+  today,
+}: {
+  session: FocusSession;
+  color: string;
+  tasks: Task[];
+  projectColors: Map<number, string>;
+  today: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const setTask = useSetFocusSessionTask();
+  const matches = useMemo(() => (open ? pickerTasks(tasks, today, query) : []), [open, tasks, today, query]);
+  const shown = matches.slice(0, PICKER_LIMIT);
+
+  const choose = (task: Task | null) => {
+    setOpen(false);
+    setQuery("");
+    if ((task?.id ?? null) === session.taskId) return;
+    setTask.mutate(
+      { id: session.id, task: task ? { id: task.id, title: task.title, projectId: task.projectId } : null },
+      { onError: () => showToast({ message: "Could not change the session's task." }) },
+    );
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && shown[0]) {
+      event.preventDefault();
+      choose(shown[0]);
+    }
+  };
+
+  const OPTION =
+    "flex min-h-9 w-full items-center gap-2.5 rounded-[12px] px-2 text-left text-sm outline-none transition-colors hover:bg-foreground/[0.08] focus-visible:bg-foreground/[0.08]";
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setQuery("");
+      }}
+    >
+      <PopoverTrigger
+        title="Change the task this session counts for"
+        className="group/session flex min-h-9 w-full items-center gap-2.5 rounded-[14px] px-2 text-left text-sm outline-none transition-colors hover:bg-foreground/[0.06] focus-visible:ring-3 focus-visible:ring-ring/50 data-[popup-open]:bg-foreground/[0.08]"
+      >
+        <span className="w-11 shrink-0 text-xs text-muted-foreground tabular-nums">{timeOf(session.startedAt)}</span>
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={session.completed ? { backgroundColor: color } : { boxShadow: `inset 0 0 0 1.5px ${color}` }}
+          aria-hidden="true"
+        />
+        <span className={cn("min-w-0 flex-1 truncate", !session.taskTitle && "text-muted-foreground")}>
+          {session.taskTitle ?? "No task"}
+        </span>
+        {!session.completed && <span className="shrink-0 text-[11px] text-muted-foreground">stopped early</span>}
+        <span className="shrink-0 text-xs text-foreground/75 tabular-nums">{formatFocused(session.focusedSeconds)}</span>
+        <Pencil
+          className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/session:opacity-100 group-focus-visible/session:opacity-100 group-data-[popup-open]/session:opacity-100"
+          aria-hidden="true"
+        />
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={6} className="w-[min(340px,calc(100vw-48px))] gap-2 p-2">
+        <p className="px-2 pt-1 text-xs text-muted-foreground tabular-nums">
+          Session at {timeOf(session.startedAt)} · {formatFocused(session.focusedSeconds)}
+        </p>
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Find a task"
+            aria-label="Find a task for this session"
+            className="h-9 rounded-full pl-8"
+            autoFocus
+          />
+        </div>
+        <ul className="-mr-2 flex max-h-[280px] flex-col overflow-y-auto pr-0.5 [scrollbar-gutter:stable]" aria-label="Tasks">
+          {!query.trim() && (
+            <li>
+              <button type="button" className={OPTION} onClick={() => choose(null)}>
+                <span className="size-2 shrink-0 rounded-full border border-dashed border-foreground/40" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">No task</span>
+                {session.taskId === null && <Check className="size-4 shrink-0 text-sky-accent" aria-label="Current" />}
+              </button>
+            </li>
+          )}
+          {shown.map((task) => {
+            const taskColor = task.projectId !== null ? projectColors.get(task.projectId) : undefined;
+            const done = task.status === "done";
+            return (
+              <li key={task.id}>
+                <button type="button" className={OPTION} onClick={() => choose(task)}>
+                  <span
+                    className={cn("size-2 shrink-0 rounded-full", !taskColor && "bg-foreground/25")}
+                    style={taskColor ? { backgroundColor: taskColor } : undefined}
+                    aria-hidden="true"
+                  />
+                  <span className={cn("min-w-0 flex-1 truncate", done && "text-muted-foreground")}>{task.title}</span>
+                  {done && <span className="shrink-0 text-[11px] text-muted-foreground">done</span>}
+                  {session.taskId === task.id && <Check className="size-4 shrink-0 text-sky-accent" aria-label="Current" />}
+                </button>
+              </li>
+            );
+          })}
+          {query.trim() && shown.length === 0 && (
+            <li className="px-2 py-3 text-sm text-muted-foreground">No task matches &ldquo;{query.trim()}&rdquo;.</li>
+          )}
+          {matches.length > PICKER_LIMIT && (
+            <li className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground">{matches.length - PICKER_LIMIT} more. Type to narrow it down.</li>
+          )}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -377,35 +546,73 @@ export const TasksPane = forwardRef<
   );
 });
 
-/* --- This week ------------------------------------------------------------------------------------- */
+/* --- A week ---------------------------------------------------------------------------------------- */
 
-/** Focused time per day this week (Sunday first): one bar a day, today's label marked, hover for the time. */
-export function WeekPane({ dim, awayIndex }: { dim: boolean; awayIndex?: number }) {
-  const today = bangkokToday();
+/**
+ * Focused time per day in the week of the chosen day (Sunday first): one bar a day, hover for the time,
+ * click to open that day above. The chosen day's label is marked; back and forward move a week at a time.
+ */
+export function WeekPane({
+  day,
+  today,
+  onDayChange,
+  dim,
+  awayIndex,
+}: {
+  day: string;
+  today: string;
+  onDayChange: (day: string) => void;
+  dim: boolean;
+  awayIndex?: number;
+}) {
   const days = useMemo(() => {
-    const sunday = startOfWeek(parseISO(today), { weekStartsOn: 0 });
+    const sunday = startOfWeek(parseISO(day), { weekStartsOn: 0 });
     return Array.from({ length: 7 }, (_, index) => toDateString(addDays(sunday, index)));
-  }, [today]);
-  const { data } = useFocusDays(days[0]!);
+  }, [day]);
+  const { data } = useFocusDays(days[0]!, days[6]!);
   const totals = useMemo(() => new Map((data ?? []).map((row) => [row.day, row.seconds])), [data]);
-  const weekTotal = (data ?? []).reduce((sum, row) => sum + row.seconds, 0);
-  const max = Math.max(...days.map((day) => totals.get(day) ?? 0), 1);
+  const weekTotal = days.reduce((sum, entry) => sum + (totals.get(entry) ?? 0), 0);
+  const max = Math.max(...days.map((entry) => totals.get(entry) ?? 0), 1);
   const [hover, setHover] = useState<number | null>(null);
   const hovered = hover !== null ? days[hover] : undefined;
+  const isThisWeek = days.includes(today);
 
   return (
-    <SidePane title="This week" aside={formatFocused(weekTotal)} dim={dim} awayIndex={awayIndex}>
-      <figure className="relative" aria-label="Time focused per day this week">
+    <SidePane
+      title={weekTitle(days[0]!, today)}
+      aside={formatFocused(weekTotal)}
+      controls={
+        <PeriodStepper
+          unit="week"
+          canForward={!isThisWeek}
+          onStep={(direction) => {
+            const next = toDateString(addDays(parseISO(day), direction * 7));
+            onDayChange(next > today ? today : next);
+          }}
+          onCurrent={isThisWeek ? undefined : () => onDayChange(today)}
+          currentLabel="This week"
+        />
+      }
+      dim={dim}
+      awayIndex={awayIndex}
+    >
+      <figure className="relative" aria-label={`Time focused per day, ${weekTitle(days[0]!, today).toLowerCase()}`}>
         <div className="flex h-[72px] items-end gap-1.5" onMouseLeave={() => setHover(null)}>
-          {days.map((day, index) => {
-            const seconds = totals.get(day) ?? 0;
+          {days.map((entry, index) => {
+            const seconds = totals.get(entry) ?? 0;
+            const future = entry > today;
             return (
-              <div
-                key={day}
-                className="flex h-full flex-1 items-end"
+              <button
+                type="button"
+                key={entry}
+                disabled={future}
+                onClick={() => onDayChange(entry)}
                 onMouseEnter={() => setHover(index)}
-                role="img"
-                aria-label={`${format(parseISO(day), "EEE d MMM")}: ${formatFocused(seconds)}`}
+                onFocus={() => setHover(index)}
+                onBlur={() => setHover(null)}
+                aria-pressed={entry === day}
+                aria-label={`${format(parseISO(entry), "EEE d MMM")}: ${formatFocused(seconds)}`}
+                className="flex h-full flex-1 items-end rounded-t-[4px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default"
               >
                 <div
                   className={cn(
@@ -413,16 +620,18 @@ export function WeekPane({ dim, awayIndex }: { dim: boolean; awayIndex?: number 
                     seconds > 0 ? "bg-[var(--series-1)]" : "bg-foreground/12",
                     hover !== null && hover !== index && "opacity-55",
                   )}
-                  style={{ height: seconds > 0 ? `max(${(seconds / max) * 100}%, 3px)` : day > today ? "0px" : "2px" }}
+                  style={{ height: seconds > 0 ? `max(${(seconds / max) * 100}%, 3px)` : future ? "0px" : "2px" }}
                 />
-              </div>
+              </button>
             );
           })}
         </div>
-        <div className="mt-1.5 flex gap-1.5 text-[11px] text-muted-foreground">
-          {days.map((day) => (
-            <span key={day} className={cn("flex-1 text-center", day === today && "font-semibold text-foreground")}>
-              {format(parseISO(day), "EEEEE")}
+        <div className="mt-1.5 flex gap-1.5 text-[11px] text-muted-foreground" aria-hidden="true">
+          {days.map((entry) => (
+            <span key={entry} className="flex flex-1 flex-col items-center gap-0.5">
+              <span className={cn(entry === day && "font-semibold text-foreground")}>{format(parseISO(entry), "EEEEE")}</span>
+              {/* The day open above: a short line under its letter (with the weight, not colour alone). */}
+              <span className={cn("h-0.5 w-3 rounded-full", entry === day ? "bg-sky-accent" : "bg-transparent")} />
             </span>
           ))}
         </div>

@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
-import { addDays, format, getDaysInMonth, parseISO, startOfWeek } from "date-fns";
+import { addDays, addMonths, format, getDaysInMonth, parseISO, startOfWeek } from "date-fns";
 import { Loader2, Music2, Play, UserRound } from "lucide-react";
+import { PeriodStepper } from "@/components/PeriodStepper";
 import { Segmented } from "@/components/Segmented";
 import { useListeningDays, useSpotifyArtistImage, useSpotifyPlay, useTopArtists, useTopTracks } from "@/hooks/useMusic";
 import { bangkokToday } from "@/lib/bangkok";
 import type { TopArtist, TopTrack } from "@/lib/db/music";
 import { canReadHistory, connectSpotify, explain, findTrack, useSpotify } from "@/lib/spotify";
 import { showToast } from "@/lib/toast";
-import { toDateString } from "@/lib/dates";
+import { monthTitle, toDateString, weekTitle } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 type Range = "week" | "month";
@@ -22,25 +23,40 @@ export function formatListening(ms: number): string {
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
-/** The days the chart shows: this week (Sunday first) or this month, in Bangkok. */
-function rangeDays(range: Range, today: string): string[] {
+/**
+ * The days the chart shows: a week (Sunday first) or a month, in Bangkok; `offset` 0 is the current one,
+ * -1 the one before, and so on.
+ */
+function rangeDays(range: Range, today: string, offset: number): string[] {
   const day = parseISO(today);
   if (range === "week") {
-    const sunday = startOfWeek(day, { weekStartsOn: 0 });
+    const sunday = addDays(startOfWeek(day, { weekStartsOn: 0 }), offset * 7);
     return Array.from({ length: 7 }, (_, index) => toDateString(addDays(sunday, index)));
   }
-  const first = parseISO(`${today.slice(0, 7)}-01`);
+  const first = addMonths(parseISO(`${today.slice(0, 7)}-01`), offset);
   return Array.from({ length: getDaysInMonth(first) }, (_, index) => toDateString(addDays(first, index)));
 }
 
 /** Time listened per day: one bar a day, today's label marked; hover a bar for its exact time. */
-function DayBars({ days, totals, today, range }: { days: string[]; totals: Map<string, number>; today: string; range: Range }) {
+function DayBars({
+  days,
+  totals,
+  today,
+  range,
+  label,
+}: {
+  days: string[];
+  totals: Map<string, number>;
+  today: string;
+  range: Range;
+  label: string;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(...days.map((day) => totals.get(day) ?? 0), 1);
   const hovered = hover !== null ? days[hover] : undefined;
 
   return (
-    <figure className="relative" aria-label={`Time listened per day this ${range}`}>
+    <figure className="relative" aria-label={`Time listened per day, ${label}`}>
       <div className="flex h-[76px] items-end gap-[2px]" onMouseLeave={() => setHover(null)}>
         {days.map((day, index) => {
           const ms = totals.get(day) ?? 0;
@@ -132,7 +148,7 @@ function TopArtists({ artists }: { artists: TopArtist[] | undefined }) {
 
           {/* The rest, measured against the first. */}
           {rest.length === 0 ? (
-            <p className="self-center text-xs text-muted-foreground">The only artist so far this period.</p>
+            <p className="self-center text-xs text-muted-foreground">The only artist this period.</p>
           ) : (
             <ol className="flex min-w-0 flex-col gap-3.5 pt-0.5" start={2}>
               {rest.map((artist, index) => (
@@ -166,17 +182,26 @@ function TopArtists({ artists }: { artists: TopArtist[] | undefined }) {
  */
 export function ListeningStats({ beside }: { beside?: React.ReactNode }) {
   const [range, setRange] = useState<Range>("week");
+  // 0: this week / month; -1: the one before, and so on.
+  const [offset, setOffset] = useState(0);
   const today = bangkokToday();
-  const days = useMemo(() => rangeDays(range, today), [range, today]);
+  const days = useMemo(() => rangeDays(range, today, offset), [range, today, offset]);
   const from = days[0]!;
-  const { data: dayRows } = useListeningDays(from);
-  const { data: tracks } = useTopTracks(from);
-  const { data: artists } = useTopArtists(from);
+  // The day after the period: the queries count plays before it.
+  const before = toDateString(addDays(parseISO(days[days.length - 1]!), 1));
+  const { data: dayRows } = useListeningDays(from, before);
+  const { data: tracks } = useTopTracks(from, before);
+  const { data: artists } = useTopArtists(from, before);
 
   const totals = useMemo(() => new Map((dayRows ?? []).map((row) => [row.day, row.ms])), [dayRows]);
-  const rangeTotal = (dayRows ?? []).reduce((sum, row) => sum + row.ms, 0);
+  const rangeTotal = days.reduce((sum, day) => sum + (totals.get(day) ?? 0), 0);
   const todayTotal = totals.get(today) ?? 0;
   const empty = dayRows !== undefined && rangeTotal === 0;
+  const current = offset === 0;
+  // "This week", "Last week", "8 – 14 Nov"; "This month", "Last month", "October".
+  const title = range === "week" ? weekTitle(from, today) : monthTitle(from.slice(0, 7), today);
+  // As it reads after a total: "this week", "last month", "8 – 14 Nov", "in October".
+  const label = /^(This|Last) /.test(title) ? title.toLowerCase() : range === "month" ? `in ${title}` : title;
 
   // Playing a top song: found on Spotify by its title and artist, then played like a search result (its
   // album, from that song on), on this PC's Spotify.
@@ -220,43 +245,59 @@ export function ListeningStats({ beside }: { beside?: React.ReactNode }) {
             <h2 id="listening-title" className="font-display text-[19px] leading-tight font-semibold tracking-[-0.02em]">
               Listening
             </h2>
+            <PeriodStepper
+              className="ml-auto"
+              unit={range}
+              canForward={!current}
+              // No "This week" link here: the pane is too narrow for it beside the switch (the row would
+              // wrap and jump); pressing Week / Month, even the one already chosen, goes back to the current period.
+              onStep={(direction) => setOffset((value) => Math.min(0, value + direction))}
+            />
             <Segmented
               size="sm"
               semantics="tabs"
               aria-label="Listening period"
               value={range}
-              onChange={setRange}
+              onChange={(next) => {
+                setRange(next);
+                setOffset(0);
+              }}
               options={[
-                { value: "week", label: "This week" },
-                { value: "month", label: "This month" },
+                { value: "week", label: "Week" },
+                { value: "month", label: "Month" },
               ]}
             />
           </div>
 
-          {/* Totals as type: two equal columns across the card, split by a hairline. */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-5">
+          {/* Totals as type: two equal columns across the card, split by a hairline (left out for an
+              earlier period with nothing in it, where they would only say 0 twice). */}
+          <div className={cn("grid grid-cols-[1fr_auto_1fr] items-stretch gap-5", empty && !current && "hidden")}>
             <div className="min-w-0">
               <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.02em] tabular-nums">
-                {formatListening(todayTotal)}
+                {formatListening(current ? todayTotal : rangeTotal / days.length)}
               </p>
-              <p className="mt-1.5 text-xs text-muted-foreground">today</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">{current ? "today" : "a day on average"}</p>
             </div>
             <span className="w-px bg-foreground/12" aria-hidden="true" />
             <div className="min-w-0">
               <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.02em] tabular-nums">
                 {formatListening(rangeTotal)}
               </p>
-              <p className="mt-1.5 text-xs text-muted-foreground">this {range}</p>
+              <p className="mt-1.5 truncate text-xs text-muted-foreground">{label}</p>
             </div>
           </div>
 
           {empty ? (
-            <p className="text-sm text-muted-foreground">
-              Nothing yet this {range}. Daylight keeps a note of what Spotify plays on this PC, even from the tray, and it adds up
-              here.
-            </p>
+            current ? (
+              <p className="text-sm text-muted-foreground">
+                Nothing yet this {range}. Daylight keeps a note of what Spotify plays on this PC, even from the tray, and it adds
+                up here.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nothing played {label}.</p>
+            )
           ) : (
-            <DayBars days={days} totals={totals} today={today} range={range} />
+            <DayBars days={days} totals={totals} today={today} range={range} label={label} />
           )}
           {needsReconnect && (
             <p className="text-xs text-muted-foreground">

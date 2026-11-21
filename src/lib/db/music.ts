@@ -143,29 +143,35 @@ export async function importPlay(play: ImportedPlay): Promise<boolean> {
   return true;
 }
 
-/** Time listened per day, from `from` (YYYY-MM-DD) on. Days with nothing are left out. */
-export async function listListeningDays(from: string): Promise<DayListening[]> {
+/** No end: `before` defaults to after every date. */
+const OPEN_END = "9999-12-31";
+
+/**
+ * Time listened per day, from `from` (YYYY-MM-DD) on and before `before` (YYYY-MM-DD, the day after the
+ * period). Days with nothing are left out.
+ */
+export async function listListeningDays(from: string, before = OPEN_END): Promise<DayListening[]> {
   const db = await getDb();
   const rows = await db.select<unknown>(
-    "SELECT substr(started_at, 1, 10) AS day, SUM(listened_ms) AS ms FROM music_plays WHERE started_at >= $1 GROUP BY day ORDER BY day",
-    [from],
+    "SELECT substr(started_at, 1, 10) AS day, SUM(listened_ms) AS ms FROM music_plays WHERE started_at >= $1 AND started_at < $2 GROUP BY day ORDER BY day",
+    [from, before],
   );
   return z.array(z.object({ day: z.string(), ms: z.number() })).parse(rows);
 }
 
-export async function listTopTracks(from: string, limit = 5): Promise<TopTrack[]> {
+export async function listTopTracks(from: string, before = OPEN_END, limit = 5): Promise<TopTrack[]> {
   const db = await getDb();
   const rows = await db.select<unknown>(
     `SELECT t.id, t.title, t.artist, t.art,
             SUM(CASE WHEN p.listened_ms >= ${LISTEN_MIN_MS} THEN 1 ELSE 0 END) AS plays,
             SUM(p.listened_ms) AS ms
        FROM music_plays p JOIN music_tracks t ON t.id = p.track_id
-      WHERE p.started_at >= $1
+      WHERE p.started_at >= $1 AND p.started_at < $2
       GROUP BY t.id
      HAVING ms >= ${LISTEN_MIN_MS}
       ORDER BY ms DESC
-      LIMIT $2`,
-    [from, limit],
+      LIMIT $3`,
+    [from, before, limit],
   );
   return z
     .array(
@@ -174,23 +180,23 @@ export async function listTopTracks(from: string, limit = 5): Promise<TopTrack[]
     .parse(rows);
 }
 
-export async function listTopArtists(from: string, limit = 5): Promise<TopArtist[]> {
+export async function listTopArtists(from: string, before = OPEN_END, limit = 5): Promise<TopArtist[]> {
   const db = await getDb();
   const rows = await db.select<unknown>(
     `SELECT t.artist, COUNT(DISTINCT t.id) AS songs, SUM(p.listened_ms) AS ms,
             (SELECT t2.art
                FROM music_plays p2 JOIN music_tracks t2 ON t2.id = p2.track_id
-              WHERE t2.artist = t.artist AND t2.art IS NOT NULL AND p2.started_at >= $1
+              WHERE t2.artist = t.artist AND t2.art IS NOT NULL AND p2.started_at >= $1 AND p2.started_at < $2
               GROUP BY t2.id
               ORDER BY SUM(p2.listened_ms) DESC
               LIMIT 1) AS art
        FROM music_plays p JOIN music_tracks t ON t.id = p.track_id
-      WHERE p.started_at >= $1
+      WHERE p.started_at >= $1 AND p.started_at < $2
       GROUP BY t.artist
      HAVING ms >= ${LISTEN_MIN_MS}
       ORDER BY ms DESC
-      LIMIT $2`,
-    [from, limit],
+      LIMIT $3`,
+    [from, before, limit],
   );
   return z
     .array(z.object({ artist: z.string(), songs: z.number(), ms: z.number(), art: z.string().nullable() }))

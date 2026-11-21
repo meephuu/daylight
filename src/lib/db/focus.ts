@@ -96,17 +96,34 @@ export async function listFocusSessionsBetween(from: string, to: string): Promis
   }));
 }
 
-/** Time focused per day from `from` ("YYYY-MM-DD") on; days without sessions are left out. */
-export async function listFocusDays(from: string): Promise<FocusDay[]> {
+/**
+ * Time focused per day from `from` ("YYYY-MM-DD") on, up to `to` (inclusive) when given; days without
+ * sessions are left out.
+ */
+export async function listFocusDays(from: string, to = "9999-12-31"): Promise<FocusDay[]> {
   const db = await getDb();
   const rows = await db.select<unknown>(
     `SELECT substr(started_at, 1, 10) AS day, SUM(focused_seconds) AS seconds, COUNT(*) AS sessions
-     FROM focus_sessions WHERE started_at >= $1 GROUP BY day ORDER BY day`,
-    [from],
+     FROM focus_sessions WHERE substr(started_at, 1, 10) BETWEEN $1 AND $2 GROUP BY day ORDER BY day`,
+    [from, to],
   );
   return z
     .array(z.object({ day: z.string(), seconds: z.number(), sessions: z.number() }))
     .parse(rows);
+}
+
+/** Points a saved session at another task (or at none). */
+export async function setFocusSessionTask(
+  id: number,
+  task: { id: number; title: string; projectId: number | null } | null,
+): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE focus_sessions SET task_id = $1, task_title = $2, project_id = $3 WHERE id = $4", [
+    task?.id ?? null,
+    task?.title ?? null,
+    task?.projectId ?? null,
+    id,
+  ]);
 }
 
 export async function deleteFocusSession(id: number): Promise<void> {

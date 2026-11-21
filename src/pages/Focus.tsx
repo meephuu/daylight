@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FocusMode } from "@/components/focus/FocusMode";
 import { FocusSettingsMenu } from "@/components/focus/FocusSettingsMenu";
-import { TasksPane, TodayPane, WeekPane } from "@/components/focus/FocusSide";
+import { DayPane, TasksPane, WeekPane } from "@/components/focus/FocusSide";
 import { FocusStage } from "@/components/focus/FocusStage";
 import { PageHeader } from "@/components/PageHeader";
 import { Segmented } from "@/components/Segmented";
@@ -16,8 +16,9 @@ const PHASES: FocusPhase[] = ["focus", "break"];
 
 /**
  * Focus: a Pomodoro timer. The timer on the left (what it is for, the time left in a ring that drains, the
- * cycle and the controls); on the right today's focus against the goal, the tasks to point it at, and the
- * week. The timer itself lives in lib/focus.ts, so it keeps running on other pages and in the tray.
+ * cycle and the controls); on the right a day's focus against the goal (today, or an earlier day stepped
+ * back to), the tasks to point it at, and that day's week. The timer itself lives in lib/focus.ts, so it
+ * keeps running on other pages and in the tray.
  */
 export default function FocusPage() {
   const today = bangkokToday();
@@ -26,6 +27,11 @@ export default function FocusPage() {
   const status = useFocusTimer((state) => state.status);
   const setPhase = useFocusTimer((state) => state.setPhase);
   const { data: sessions = [] } = useFocusSessionsOn(today);
+  // The day the side panes show: null is today (so it follows the date over midnight).
+  const [picked, setPicked] = useState<string | null>(null);
+  const shownDay = picked !== null && picked < today ? picked : today;
+  const pickDay = useCallback((day: string) => setPicked(day >= today ? null : day), [today]);
+  const { data: shownSessions = [] } = useFocusSessionsOn(shownDay);
   const { data: tasks = [] } = useTasks();
   const { data: projects = [] } = useProjects();
   const tasksRef = useRef<HTMLElement>(null);
@@ -90,9 +96,19 @@ export default function FocusPage() {
           />
         </div>
         <div className="flex min-w-0 flex-col gap-3 lg:col-span-5">
-          <TodayPane sessions={sessions} goalMin={settings.goalMin} projectColors={projectColors} dim={dim} awayIndex={2} />
+          <DayPane
+            day={shownDay}
+            today={today}
+            onDayChange={pickDay}
+            sessions={shownDay === today ? sessions : shownSessions}
+            tasks={tasks}
+            goalMin={settings.goalMin}
+            projectColors={projectColors}
+            dim={dim}
+            awayIndex={2}
+          />
           <TasksPane ref={tasksRef} tasks={tasks} projectColors={projectColors} focusedByTask={focusedByTask} dim={dim} awayIndex={3} />
-          <WeekPane dim={dim} awayIndex={4} />
+          <WeekPane day={shownDay} today={today} onDayChange={pickDay} dim={dim} awayIndex={4} />
         </div>
       </div>
       {layer && <FocusMode active={focusMode} onClosed={closeLayer} />}

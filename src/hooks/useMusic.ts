@@ -5,16 +5,29 @@ import { addToPlaylist, addToQueue, removeFromPlaylist, findPlayingTrack, getArt
 /** Listening history (written by NowPlayingService, which invalidates ["music"] as it saves). */
 export const MUSIC_KEY = ["music"] as const;
 
-export function useListeningDays(from: string) {
-  return useQuery({ queryKey: [...MUSIC_KEY, "days", from], queryFn: () => listListeningDays(from) });
+/** `before` is the day after the period (YYYY-MM-DD); left out, the period runs on to now. */
+export function useListeningDays(from: string, before?: string) {
+  return useQuery({
+    queryKey: [...MUSIC_KEY, "days", from, before],
+    queryFn: () => listListeningDays(from, before),
+    placeholderData: (previous) => previous,
+  });
 }
 
-export function useTopTracks(from: string) {
-  return useQuery({ queryKey: [...MUSIC_KEY, "topTracks", from], queryFn: () => listTopTracks(from, 5) });
+export function useTopTracks(from: string, before?: string) {
+  return useQuery({
+    queryKey: [...MUSIC_KEY, "topTracks", from, before],
+    queryFn: () => listTopTracks(from, before, 5),
+    placeholderData: (previous) => previous,
+  });
 }
 
-export function useTopArtists(from: string) {
-  return useQuery({ queryKey: [...MUSIC_KEY, "topArtists", from], queryFn: () => listTopArtists(from, 5) });
+export function useTopArtists(from: string, before?: string) {
+  return useQuery({
+    queryKey: [...MUSIC_KEY, "topArtists", from, before],
+    queryFn: () => listTopArtists(from, before, 5),
+    placeholderData: (previous) => previous,
+  });
 }
 
 /* --- Spotify Web API ------------------------------------------------------------------------------- */
